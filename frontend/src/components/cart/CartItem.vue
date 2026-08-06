@@ -2,8 +2,10 @@
 <!-- Licensed under GPLv3. See license.txt -->
 
 <script setup lang="ts">
-import { Minus, Plus, Trash2, Gift, Zap, Package } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Minus, Plus, Trash2, Gift, Zap, Package, ShoppingBag, StickyNote, ListPlus, UtensilsCrossed } from 'lucide-vue-next'
 import { useCurrency } from '@/composables/useCurrency'
+import { useRestaurantStore } from '@/stores/restaurant'
 import type { CartItem } from '@/types'
 
 const props = defineProps<{
@@ -13,7 +15,9 @@ const props = defineProps<{
   // True for a component row rendered inside ComboCartGroup. Qty is fixed
   // at 1 by the price-distribution algorithm and deletion removes the
   // whole combo instance (via the group header), not just this row — so
-  // both controls are redundant/misleading here and are hidden.
+  // both controls are redundant/misleading here and are hidden. Destination/
+  // notes/modifiers are also set once for the whole instance, not per
+  // component, so that row is hidden here too.
   isComboComponent?: boolean
 }>()
 
@@ -21,9 +25,17 @@ const emit = defineEmits<{
   select: [index: number]
   updateQty: [index: number, qty: number]
   remove: [index: number]
+  toggleDestination: [index: number]
+  editNotes: [index: number]
+  editModifiers: [index: number]
 }>()
 
 const { formatCurrency } = useCurrency()
+const restaurantStore = useRestaurantStore()
+
+const availableModifierGroups = computed(() =>
+  restaurantStore.enabled ? restaurantStore.modifierGroupsForItem(props.item.item_code) : []
+)
 </script>
 
 <template>
@@ -98,6 +110,55 @@ const { formatCurrency } = useCurrency()
         </div>
         <div v-if="item.item_tax_template" class="text-[9px] text-purple-500 dark:text-purple-400 mt-0.5">
           {{ item.item_tax_template }}
+        </div>
+
+        <!-- Restaurant: destination / notes / modifiers (hidden for combo
+             components, set once for the whole instance, and for free
+             pricing-rule items, which aren't independently editable) -->
+        <div
+          v-if="restaurantStore.enabled && !isComboComponent && !item.is_free_item"
+          class="flex flex-wrap items-center gap-1 mt-1"
+          @click.stop
+        >
+          <button
+            @click="emit('toggleDestination', index)"
+            :aria-label="__('Toggle destination')"
+            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-wide transition-colors shrink-0"
+            :class="item.destination === 'Para llevar'
+              ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400'
+              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'"
+          >
+            <ShoppingBag v-if="item.destination === 'Para llevar'" :size="9" />
+            <UtensilsCrossed v-else :size="9" />
+            {{ item.destination === 'Para llevar' ? restaurantStore.labelTakeaway : restaurantStore.labelDineIn }}
+          </button>
+
+          <button
+            @click="emit('editNotes', index)"
+            :aria-label="__('Kitchen note')"
+            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium max-w-[140px] transition-colors"
+            :class="item.notes
+              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'"
+          >
+            <StickyNote :size="9" class="shrink-0" />
+            <span class="truncate">{{ item.notes || __('Note') }}</span>
+          </button>
+
+          <button
+            v-if="availableModifierGroups.length > 0 || (item.modifiers && item.modifiers.length > 0)"
+            @click="emit('editModifiers', index)"
+            :aria-label="__('Modifiers')"
+            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium max-w-[160px] transition-colors"
+            :class="item.modifiers && item.modifiers.length > 0
+              ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'"
+          >
+            <ListPlus :size="9" class="shrink-0" />
+            <span class="truncate">
+              {{ item.modifiers && item.modifiers.length > 0 ? item.modifiers.map((m) => m.label).join(', ') : __('Modifiers') }}
+            </span>
+          </button>
         </div>
       </div>
 

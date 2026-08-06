@@ -308,10 +308,9 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 			)
 		if item["destination"] not in DESTINATIONS:
 			frappe.throw(_("Invalid destination: {0}").format(item["destination"]))
-		modifiers = [m for m in (item.get("modifiers") or []) if m in modifier_labels]
-		item["modifiers"] = modifiers
-		if modifiers:
-			item["modifiers_summary"] = ", ".join(modifier_labels[m] for m in modifiers)
+		# Silently drop any modifier name the client sent that isn't a
+		# real, resolvable Restaurant Modifier — never trust it blind.
+		item["modifiers"] = [m for m in (item.get("modifiers") or []) if m in modifier_labels]
 
 	# Group items by combo_uid — everything else is sold individually.
 	combo_groups = {}
@@ -364,7 +363,7 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 	)
 	invoice = _create_pos_invoice_doc(**args)
 
-	order = _build_restaurant_order(invoice, items, combo_meta, profile)
+	order = _build_restaurant_order(invoice, items, combo_meta, profile, modifier_labels)
 
 	frappe.db.set_value(
 		"POS Invoice", invoice.name, "pos_prime_restaurant_order", order.name, update_modified=False
@@ -375,7 +374,7 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 	return response
 
 
-def _build_restaurant_order(invoice, items, combo_meta, profile):
+def _build_restaurant_order(invoice, items, combo_meta, profile, modifier_labels):
 	invoice_rows_by_uid = {
 		row.get("pos_prime_line_uid"): row for row in invoice.items if row.get("pos_prime_line_uid")
 	}
@@ -412,6 +411,9 @@ def _build_restaurant_order(invoice, items, combo_meta, profile):
 				"list_rate": item.get("_list_rate") if combo_uid else (row.price_list_rate if row else 0),
 				"destination": item.get("destination"),
 				"notes": item.get("notes") or "",
+				"modifiers_summary": ", ".join(
+					modifier_labels.get(m, m) for m in (item.get("modifiers") or [])
+				),
 				"combo_uid": combo_uid or "",
 				"combo": meta["combo_doc"].name if meta else None,
 				"combo_slot_label": item.get("combo_slot_label") if meta else None,

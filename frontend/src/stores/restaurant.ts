@@ -9,6 +9,7 @@ import type {
   RestaurantCombo,
   RestaurantComboSlotOption,
   RestaurantDestination,
+  RestaurantModifierGroup,
 } from '@/types'
 import { useCartStore } from '@/stores/cart'
 import { useItemsStore } from '@/stores/items'
@@ -135,6 +136,21 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     return comboUid
   }
 
+  /** Modifier groups applicable to one catalog item — by direct item match,
+   * item-group match, or "apply to all items". Looks the item's group up
+   * from the already-loaded catalog rather than requiring callers (CartItem,
+   * ModifierPicker) to plumb it through. */
+  function modifierGroupsForItem(itemCode: string): RestaurantModifierGroup[] {
+    const itemsStore = useItemsStore()
+    const itemGroup = itemsStore.allItems.find((i) => i.item_code === itemCode)?.item_group
+    return modifierGroups.value.filter(
+      (g) =>
+        g.apply_to_all_items ||
+        (itemGroup && g.item_groups?.includes(itemGroup)) ||
+        g.items?.includes(itemCode)
+    )
+  }
+
   function $reset() {
     config.value = null
     loading.value = false
@@ -156,6 +172,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     fetchComboOptions,
     previewCombo,
     addComboToCart,
+    modifierGroupsForItem,
     $reset,
   }
 })

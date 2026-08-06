@@ -82,6 +82,13 @@ const virtualizer = useVirtualizer(
   }))
 )
 
+// Default destination for any new line — the header/F7 toggle seeds this;
+// null (not "Mesa") when restaurant mode is off, so non-restaurant sites
+// never send a destination field at all.
+function currentDestination() {
+  return restaurantStore.enabled ? restaurantStore.defaultDestination : null
+}
+
 // Auto-add to cart if setting enabled and exactly 1 item matches
 watch(
   () => [itemsStore.searchTerm, itemsStore.filteredItems.length],
@@ -91,7 +98,11 @@ watch(
       itemsStore.filteredItems.length === 1 &&
       itemsStore.searchTerm
     ) {
-      const err = cartStore.addItem(itemsStore.filteredItems[0], settingsStore.validateStockOnSave)
+      const err = cartStore.addItem(
+        itemsStore.filteredItems[0],
+        settingsStore.validateStockOnSave,
+        currentDestination()
+      )
       if (err) showStockError(err)
       itemsStore.setSearchTerm('')
     }
@@ -133,7 +144,7 @@ function onItemSelect(item: Item) {
     batchSerialItem.value = item
     return
   }
-  const err = cartStore.addItem(item, settingsStore.validateStockOnSave)
+  const err = cartStore.addItem(item, settingsStore.validateStockOnSave, currentDestination())
   if (err) showStockError(err)
 }
 
@@ -141,7 +152,7 @@ function onBatchSerialConfirm(batchNo: string | null, serialNo: string | null) {
   const item = batchSerialItem.value
   if (!item) return
 
-  const overrides: Partial<CartItem> = {}
+  const overrides: Partial<CartItem> = { destination: currentDestination() }
   // For serial items, serials may span multiple batches — auto-split.
   // This case shouldn't happen with current UI (batch is required first),
   // but handle it for safety.
@@ -166,10 +177,11 @@ function onBatchSerialConfirm(batchNo: string | null, serialNo: string | null) {
 async function handleBarcodeScan(barcode: string) {
   const result = await itemsStore.searchByBarcode(barcode)
   if (result && result.item_code) {
+    const destination = currentDestination()
     // Find item in full list or create minimal item for cart
     const existingItem = itemsStore.allItems.find((i) => i.item_code === result.item_code)
     if (existingItem) {
-      const err = cartStore.addItem(existingItem, settingsStore.validateStockOnSave)
+      const err = cartStore.addItem(existingItem, settingsStore.validateStockOnSave, destination)
       if (err) { showStockError(err); return }
     } else {
       // Add as minimal item — the backend will resolve full details
@@ -192,7 +204,7 @@ async function handleBarcodeScan(barcode: string) {
         barcode: result.barcode || null,
         item_tax_template: null,
         is_product_bundle: false,
-      }, settingsStore.validateStockOnSave)
+      }, settingsStore.validateStockOnSave, destination)
       if (err) { showStockError(err); return }
 
       // If scanned item has batch/serial info, update the cart item

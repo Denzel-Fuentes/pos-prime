@@ -12,9 +12,10 @@ interface ShortcutHandlers {
   onFocusSearch?: () => void
   onToggleHeldOrders?: () => void
   onToggleReturn?: () => void
+  onToggleDestination?: () => void
 }
 
-const GLOBAL_KEYS = new Set(['F1', 'F2', 'F3', 'F4', 'F5', 'F8', 'F9', 'F10', 'Escape'])
+const GLOBAL_KEYS = new Set(['F1', 'F2', 'F3', 'F4', 'F5', 'F7', 'F8', 'F9', 'F10', 'Escape'])
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
   function handleKeyDown(e: KeyboardEvent) {
@@ -48,6 +49,10 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         case 'F5':
           e.preventDefault()
           handlers.onOpenOrders?.()
+          return
+        case 'F7':
+          e.preventDefault()
+          handlers.onToggleDestination?.()
           return
         case 'F8':
           e.preventDefault()

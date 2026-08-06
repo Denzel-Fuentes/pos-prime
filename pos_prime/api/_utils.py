@@ -132,8 +132,15 @@ def build_item_dict(item_data, profile):
             item_dict["pos_prime_combo_slot_idx"] = item_data["combo_slot_idx"]
         if item_data.get("combo_label"):
             item_dict["pos_prime_combo_label"] = item_data["combo_label"]
-        if item_data.get("modifiers_summary"):
-            item_dict["pos_prime_modifiers"] = item_data["modifiers_summary"]
+        if item_data.get("modifiers"):
+            # Raw Restaurant Modifier names, comma-joined — not print
+            # labels. This needs to round-trip through a held draft and
+            # back into a resubmittable list, so it stores the same
+            # identifiers create_restaurant_sale validates against, not
+            # a human-readable summary. The human-readable version lives
+            # on Restaurant Order Item.modifiers_summary instead, built
+            # once at sale time (see pos_prime/api/restaurant.py).
+            item_dict["pos_prime_modifiers"] = ",".join(item_data["modifiers"])
 
     return item_dict
 
@@ -542,6 +549,7 @@ def format_invoice_item(item):
         item_dict["combo"] = item.get("pos_prime_combo")
         item_dict["combo_slot_idx"] = item.get("pos_prime_combo_slot_idx")
         item_dict["combo_label"] = item.get("pos_prime_combo_label")
-        item_dict["modifiers_summary"] = item.get("pos_prime_modifiers")
+        raw_modifiers = item.get("pos_prime_modifiers")
+        item_dict["modifiers"] = raw_modifiers.split(",") if raw_modifiers else []
 
     return item_dict

@@ -100,6 +100,12 @@ useKeyboardShortcuts({
   },
   onToggleHeldOrders: () => { showHeldOrders.value = !showHeldOrders.value },
   onToggleReturn: () => { showReturnDialog.value = !showReturnDialog.value },
+  onToggleDestination: () => {
+    if (!restaurantStore.enabled) return
+    restaurantStore.setDefaultDestination(
+      restaurantStore.defaultDestination === 'Mesa' ? 'Para llevar' : 'Mesa'
+    )
+  },
 })
 
 // Company info for display

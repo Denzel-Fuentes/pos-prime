@@ -121,12 +121,15 @@ export interface CartItem {
   combo_label?: string | null
   combo_slot_label?: string | null
   combo_slot_idx?: number | null
-  // Set on combo lines by ComboBuilderDialog. A general per-line
-  // destination toggle for loose items too — and a note field — land in
-  // the restaurant module's next increment; the server already defaults
-  // missing destinations (create_restaurant_sale) so this is safe to
-  // leave unset until then.
   destination?: RestaurantDestination | null
+  // Free-text kitchen note ("sin cebolla") — for exceptional requests.
+  // Frequent customizations should go through modifiers instead.
+  notes?: string | null
+  // Structured, free-only modifiers (Restaurant Modifier names). Kept
+  // alongside a denormalized display string built when they're set, so
+  // CartItem.vue doesn't need to resolve names against restaurantStore
+  // just to render a chip.
+  modifiers?: { modifier: string; label: string }[]
 }
 
 export interface TaxRow {
@@ -414,7 +417,10 @@ export interface InvoiceItem {
   combo?: string | null
   combo_slot_idx?: number | null
   combo_label?: string | null
-  modifiers_summary?: string | null
+  // Raw Restaurant Modifier names (not print labels — those aren't
+  // stored server-side; a resumed draft's chip falls back to showing
+  // the raw name). See pos_prime/api/_utils.py::format_invoice_item.
+  modifiers?: string[] | null
 }
 
 export interface OpeningEntry {

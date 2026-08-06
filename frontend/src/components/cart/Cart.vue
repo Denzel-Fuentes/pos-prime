@@ -7,6 +7,7 @@ import { useCartStore } from '@/stores/cart'
 import { useCustomerStore } from '@/stores/customer'
 import { usePaymentStore } from '@/stores/payment'
 import { useSettingsStore } from '@/stores/settings'
+import { useRestaurantStore } from '@/stores/restaurant'
 import { useCurrency } from '@/composables/useCurrency'
 import { useTouchDevice } from '@/composables/useTouchDevice'
 import CartItemComp from './CartItem.vue'
@@ -18,8 +19,10 @@ import NumPad from './NumPad.vue'
 import CustomerSelector from '@/components/customer/CustomerSelector.vue'
 import CustomerDetailPanel from '@/components/customer/CustomerDetailPanel.vue'
 import ComboCartGroup from '@/components/restaurant/ComboCartGroup.vue'
+import NoteDialog from '@/components/restaurant/NoteDialog.vue'
+import ModifierPicker from '@/components/restaurant/ModifierPicker.vue'
 import { ShoppingCart, CreditCard, Pause, Check } from 'lucide-vue-next'
-import type { CartItem } from '@/types'
+import type { CartItem, RestaurantDestination } from '@/types'
 
 const { isTouchDevice } = useTouchDevice()
 
@@ -27,6 +30,7 @@ const cartStore = useCartStore()
 const customerStore = useCustomerStore()
 const paymentStore = usePaymentStore()
 const settingsStore = useSettingsStore()
+const restaurantStore = useRestaurantStore()
 const { formatCurrency } = useCurrency()
 
 const showNumPad = ref(false)
@@ -82,6 +86,43 @@ function onRemove(index: number) {
   if (cartStore.items[index]?.is_free_item) return
   cartStore.removeItem(index)
   showNumPad.value = false
+}
+
+function onToggleItemDestination(index: number) {
+  const item = cartStore.items[index]
+  if (!item) return
+  cartStore.updateItemDestination(index, item.destination === 'Para llevar' ? 'Mesa' : 'Para llevar')
+}
+
+// Note/modifier dialogs edit one line at a time, addressed by index — same
+// pattern as the batch/serial selector in ItemGrid.vue (a ref that doubles
+// as both "is a dialog open" and "which line is it for").
+const noteDialogIndex = ref<number | null>(null)
+const noteDialogItem = computed(() =>
+  noteDialogIndex.value !== null ? cartStore.items[noteDialogIndex.value] ?? null : null
+)
+
+function onEditNotes(index: number) {
+  noteDialogIndex.value = index
+}
+
+function onSaveNotes(notes: string) {
+  if (noteDialogIndex.value !== null) cartStore.updateItemNotes(noteDialogIndex.value, notes)
+  noteDialogIndex.value = null
+}
+
+const modifierPickerIndex = ref<number | null>(null)
+const modifierPickerItem = computed(() =>
+  modifierPickerIndex.value !== null ? cartStore.items[modifierPickerIndex.value] ?? null : null
+)
+
+function onEditModifiers(index: number) {
+  modifierPickerIndex.value = index
+}
+
+function onSaveModifiers(modifiers: { modifier: string; label: string }[]) {
+  if (modifierPickerIndex.value !== null) cartStore.updateItemModifiers(modifierPickerIndex.value, modifiers)
+  modifierPickerIndex.value = null
 }
 
 function onNumPadUpdate(value: number) {
@@ -207,7 +248,25 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
 
     <!-- Cart label + column headers (ERPNext-style) -->
     <div class="px-3 pt-2 pb-1.5">
-      <div class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1.5">{{ __('Cart') }}</div>
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ __('Cart') }}</div>
+        <!-- Default destination for newly-added lines. Same toggle as F7 —
+             see useKeyboardShortcuts/POS.vue — the model stays per-line,
+             this is just a quick seed for new lines. -->
+        <div v-if="restaurantStore.enabled" class="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5" title="F7">
+          <button
+            v-for="dest in restaurantStore.config?.destinations || ['Mesa', 'Para llevar']"
+            :key="dest"
+            @click="restaurantStore.setDefaultDestination(dest as RestaurantDestination)"
+            class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide transition-colors"
+            :class="restaurantStore.defaultDestination === dest
+              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+              : 'text-gray-500 dark:text-gray-400'"
+          >
+            {{ dest === 'Mesa' ? restaurantStore.labelDineIn : restaurantStore.labelTakeaway }}
+          </button>
+        </div>
+      </div>
       <div v-if="cartStore.items.length > 0" class="flex items-center text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
         <span class="flex-1">{{ __('Item') }}</span>
         <span class="w-[88px] text-center">{{ __('Qty') }}</span>
@@ -246,6 +305,9 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
             @select="onItemSelect"
             @update-qty="onUpdateQty"
             @remove="onRemove"
+            @toggle-destination="onToggleItemDestination"
+            @edit-notes="onEditNotes"
+            @edit-modifiers="onEditModifiers"
           />
         </template>
       </TransitionGroup>
@@ -352,6 +414,25 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
         </button>
       </div>
     </div>
+
+    <!-- Kitchen note dialog -->
+    <NoteDialog
+      v-if="noteDialogItem"
+      :item-name="noteDialogItem.item_name"
+      :model-value="noteDialogItem.notes ?? null"
+      @confirm="onSaveNotes"
+      @close="noteDialogIndex = null"
+    />
+
+    <!-- Modifier picker -->
+    <ModifierPicker
+      v-if="modifierPickerItem"
+      :item-code="modifierPickerItem.item_code"
+      :item-name="modifierPickerItem.item_name"
+      :model-value="modifierPickerItem.modifiers || []"
+      @confirm="onSaveModifiers"
+      @close="modifierPickerIndex = null"
+    />
   </div>
 </template>
 

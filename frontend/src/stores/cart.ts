@@ -4,7 +4,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { call } from 'frappe-ui'
-import type { CartItem, Item, TaxRow, InvoiceOptions } from '@/types'
+import type { CartItem, Item, TaxRow, InvoiceOptions, RestaurantDestination } from '@/types'
 import { makeCartItem, makeFreeCartItem, toTaxPayloadItem, type FreeItemData } from '@/utils/cartPayload'
 
 let taxRequestId = 0
@@ -66,7 +66,11 @@ export const useCartStore = defineStore('cart', () => {
     items.value.reduce((sum, item) => sum + item.qty, 0)
   )
 
-  function addItem(item: Item, validateStock = true): string | null {
+  function addItem(
+    item: Item,
+    validateStock = true,
+    destination: RestaurantDestination | null = null
+  ): string | null {
     // Stock validation: check available qty for stock items
     if (validateStock && item.is_stock_item) {
       const available = item.actual_qty ?? 0
@@ -81,21 +85,31 @@ export const useCartStore = defineStore('cart', () => {
 
     // For batch/serial items, don't merge — they get separate lines
     if (item.has_batch_no || item.has_serial_no) {
-      items.value.push(makeCartItem(item))
+      items.value.push(makeCartItem(item, { destination }))
       selectedItemIndex.value = items.value.length - 1
       debounceTaxCalculation()
       return null
     }
 
+    // Combo lines are never a merge target — matching one here would
+    // silently corrupt a combo instance's qty=1-per-slot invariant.
+    // Destination is part of the merge key too: tapping the same item
+    // again after flipping the destination toggle starts a new line
+    // rather than folding into the previous (different-destination) one.
     const existingIndex = items.value.findIndex(
-      (i) => i.item_code === item.item_code && !i.batch_no && !i.serial_no
+      (i) =>
+        i.item_code === item.item_code &&
+        !i.batch_no &&
+        !i.serial_no &&
+        !i.combo_uid &&
+        i.destination === destination
     )
     if (existingIndex >= 0) {
       items.value[existingIndex].qty += 1
       recalcItemAmount(existingIndex)
       selectedItemIndex.value = existingIndex
     } else {
-      items.value.push(makeCartItem(item))
+      items.value.push(makeCartItem(item, { destination }))
       selectedItemIndex.value = items.value.length - 1
     }
     debounceTaxCalculation()
@@ -208,6 +222,22 @@ export const useCartStore = defineStore('cart', () => {
     items.value[index].conversion_factor = conversionFactor
     recalcItemAmount(index)
     debounceTaxCalculation()
+  }
+
+  /** Per-line destination toggle. Refuses on combo components — a
+   * combo instance's destination is set once, for all its lines
+   * together, via restaurantStore.addComboToCart / ComboCartGroup. */
+  function updateItemDestination(index: number, destination: RestaurantDestination) {
+    if (items.value[index]?.combo_uid) return
+    items.value[index].destination = destination
+  }
+
+  function updateItemNotes(index: number, notes: string) {
+    items.value[index].notes = notes.trim() || null
+  }
+
+  function updateItemModifiers(index: number, modifiers: { modifier: string; label: string }[]) {
+    items.value[index].modifiers = modifiers
   }
 
   function updateItemDiscountAmount(index: number, discountAmt: number) {
@@ -469,6 +499,9 @@ export const useCartStore = defineStore('cart', () => {
     updateItemTaxTemplate,
     updateItemBatchSerial,
     updateItemUom,
+    updateItemDestination,
+    updateItemNotes,
+    updateItemModifiers,
     removeItem,
     selectItem,
     setDiscount,
