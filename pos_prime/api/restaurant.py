@@ -16,6 +16,7 @@ from pos_prime.api._utils import (
 from pos_prime.api.invoices import _create_pos_invoice_doc
 from pos_prime.api.items import _get_group_and_children
 from pos_prime.restaurant.pricing import distribute_combo_price
+from pos_prime.restaurant.printing import print_comanda, send_test_ticket
 
 DESTINATIONS = ("Mesa", "Para llevar")
 
@@ -369,9 +370,69 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 		"POS Invoice", invoice.name, "pos_prime_restaurant_order", order.name, update_modified=False
 	)
 
+	_trigger_comanda_print(order)
+
 	response = format_invoice_response(invoice)
 	response["restaurant_order"] = order.name
 	return response
+
+
+def _trigger_comanda_print(order):
+	"""Print (or skip) the kitchen ticket per Restaurant Settings.
+
+	Background mode enqueues after commit — see printing.print_comanda's
+	docstring for why that's the only way a printer failure can never
+	revert or block this sale. Inline mode (no RQ worker, e.g. a dev
+	bench) runs before commit but is wrapped here regardless of
+	fail_silently: "never block checkout" must hold unconditionally, not
+	only when the admin has also asked for quiet failures.
+	"""
+	settings = frappe.get_cached_doc("Restaurant Settings")
+	if not settings.print_comanda_on_payment:
+		order.db_set("comanda_status", "Not Required", update_modified=False)
+		return
+
+	if settings.comanda_background_job:
+		frappe.enqueue(
+			"pos_prime.restaurant.printing.print_comanda",
+			queue="short",
+			enqueue_after_commit=True,
+			timeout=60,
+			restaurant_order=order.name,
+		)
+	else:
+		try:
+			print_comanda(order.name)
+		except Exception:
+			frappe.log_error(title="Comanda print failed (inline)")
+
+
+@frappe.whitelist()
+def reprint_comanda(restaurant_order):
+	"""User-triggered reprint (Desk button, ReceiptPreview.vue). Runs
+	inline — the caller is waiting for a result — and always returns the
+	resulting status instead of letting a printer error surface as a raw
+	500, since "the kitchen printer is offline" is a business condition
+	here, not a programming error. print_comanda already persisted
+	comanda_status/comanda_error before any exception reaches this catch.
+	"""
+	validate_pos_access()
+	try:
+		print_comanda(restaurant_order)
+	except Exception:
+		pass
+	return frappe.db.get_value(
+		"Restaurant Order", restaurant_order, ["comanda_status", "comanda_error"], as_dict=True
+	)
+
+
+@frappe.whitelist()
+def test_printer(printer):
+	"""Desk-only diagnostic: send a short test ticket and let any
+	connection error surface normally (no try/except) since an admin is
+	watching for exactly that."""
+	send_test_ticket(printer)
+	return {"success": True}
 
 
 def _build_restaurant_order(invoice, items, combo_meta, profile, modifier_labels):

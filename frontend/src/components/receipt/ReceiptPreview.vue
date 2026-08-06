@@ -3,11 +3,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { call } from 'frappe-ui'
 import { usePaymentStore } from '@/stores/payment'
 import { usePosSessionStore } from '@/stores/posSession'
 import { useSettingsStore } from '@/stores/settings'
 import { useCurrency } from '@/composables/useCurrency'
-import { Printer, Plus, X, Check, Share2, Loader2, Mail } from 'lucide-vue-next'
+import { Printer, Plus, X, Check, Share2, Loader2, Mail, ChefHat } from 'lucide-vue-next'
 import EmailReceiptDialog from './EmailReceiptDialog.vue'
 
 const emit = defineEmits<{
@@ -115,6 +116,37 @@ async function shareReceipt() {
 
 function newOrder() {
   emit('newOrder')
+}
+
+// Reads paymentStore.lastInvoice directly (not the cart — startNewOrder()
+// already resets that by the time this dialog is showing) so "reprint" stays
+// available for the whole time the receipt is on screen.
+const reprinting = ref(false)
+
+async function reprintComanda() {
+  if (!invoice.value?.restaurant_order || reprinting.value) return
+  reprinting.value = true
+  const frappeGlobal = (window as any).frappe
+  try {
+    const result = await call('pos_prime.api.restaurant.reprint_comanda', {
+      restaurant_order: invoice.value.restaurant_order,
+    })
+    if (result?.comanda_status === 'Printed') {
+      frappeGlobal?.show_alert?.({ message: __('Kitchen ticket printed.'), indicator: 'green' }, 3)
+    } else {
+      frappeGlobal?.show_alert?.(
+        {
+          message: __('Kitchen ticket failed: {0}', [result?.comanda_error || result?.comanda_status || '']),
+          indicator: 'red',
+        },
+        4
+      )
+    }
+  } catch (e: any) {
+    frappeGlobal?.show_alert?.({ message: e?.message || __('Failed to print kitchen ticket'), indicator: 'red' }, 4)
+  } finally {
+    reprinting.value = false
+  }
 }
 </script>
 
@@ -339,6 +371,16 @@ function newOrder() {
               class="py-2.5 px-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all duration-150 flex items-center justify-center"
             >
               <Mail :size="16" />
+            </button>
+            <button
+              v-if="invoice.restaurant_order"
+              @click="reprintComanda"
+              :disabled="reprinting"
+              :title="__('Reprint kitchen ticket')"
+              class="py-2.5 px-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all duration-150 flex items-center justify-center disabled:opacity-60"
+            >
+              <Loader2 v-if="reprinting" :size="16" class="animate-spin" />
+              <ChefHat v-else :size="16" />
             </button>
             <button
               @click="newOrder"

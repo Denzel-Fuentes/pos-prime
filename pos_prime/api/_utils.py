@@ -344,7 +344,7 @@ def format_invoice_response(invoice):
 
     Returns ALL relevant POS Invoice fields so the frontend has complete data.
     """
-    return {
+    response = {
         # Identity
         "name": invoice.name,
         "naming_series": invoice.get("naming_series"),
@@ -495,6 +495,13 @@ def format_invoice_response(invoice):
             for tax in invoice.taxes
         ],
     }
+
+    # Restaurant module — echoed so any view of an invoice (not just the
+    # one create_restaurant_sale itself returns) can link to its order.
+    if frappe.get_meta("POS Invoice").has_field("pos_prime_restaurant_order"):
+        response["restaurant_order"] = invoice.get("pos_prime_restaurant_order")
+
+    return response
 
 
 def format_invoice_item(item):
