@@ -11,8 +11,8 @@ build/
 node_modules/
 frontend/node_modules/
 
-# Vite build output (generated files)
-posify/public/frontend/
+# Vite build output (generated files, content-hashed filenames on every build)
+pos_prime/public/frontend/
 
 # Environment
 .env
