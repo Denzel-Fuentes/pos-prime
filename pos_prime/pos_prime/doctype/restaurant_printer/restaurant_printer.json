@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "autoname": "field:printer_name",
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "printer_name",
+  "disabled",
+  "pos_profile",
+  "print_destinations",
+  "section_break_conn",
+  "host",
+  "port",
+  "column_break_conn",
+  "timeout_seconds",
+  "copies",
+  "section_break_format",
+  "codepage",
+  "escpos_codepage_id",
+  "column_break_format",
+  "chars_per_line",
+  "cut_paper",
+  "cash_drawer_pulse"
+ ],
+ "fields": [
+  {
+   "fieldname": "printer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Printer Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "description": "Leave blank to use this printer for all POS Profiles.",
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile"
+  },
+  {
+   "default": "All",
+   "fieldname": "print_destinations",
+   "fieldtype": "Select",
+   "label": "Print Destinations",
+   "options": "All\nMesa Only\nPara llevar Only"
+  },
+  {
+   "fieldname": "section_break_conn",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "description": "IP address or hostname of the network printer.",
+   "fieldname": "host",
+   "fieldtype": "Data",
+   "label": "Host",
+   "reqd": 1
+  },
+  {
+   "default": "9100",
+   "fieldname": "port",
+   "fieldtype": "Int",
+   "label": "Port"
+  },
+  {
+   "fieldname": "column_break_conn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "5",
+   "fieldname": "timeout_seconds",
+   "fieldtype": "Int",
+   "label": "Timeout (seconds)"
+  },
+  {
+   "default": "1",
+   "fieldname": "copies",
+   "fieldtype": "Int",
+   "label": "Copies"
+  },
+  {
+   "fieldname": "section_break_format",
+   "fieldtype": "Section Break",
+   "label": "Ticket Format"
+  },
+  {
+   "default": "CP850",
+   "fieldname": "codepage",
+   "fieldtype": "Select",
+   "label": "Codepage",
+   "options": "CP437\nCP850\nCP858\nCP1252\nUTF-8"
+  },
+  {
+   "description": "Override the numeric ESC/POS code-table id if this printer doesn't follow the standard numbering for the codepage above.",
+   "fieldname": "escpos_codepage_id",
+   "fieldtype": "Int",
+   "label": "ESC/POS Codepage ID Override"
+  },
+  {
+   "fieldname": "column_break_format",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "32",
+   "fieldname": "chars_per_line",
+   "fieldtype": "Int",
+   "label": "Characters per Line"
+  },
+  {
+   "default": "1",
+   "fieldname": "cut_paper",
+   "fieldtype": "Check",
+   "label": "Cut Paper After Printing"
+  },
+  {
+   "default": "0",
+   "fieldname": "cash_drawer_pulse",
+   "fieldtype": "Check",
+   "label": "Pulse Cash Drawer"
+  }
+ ],
+ "icon": "restaurant",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Printer",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,119 @@
+{
+ "actions": [],
+ "autoname": "field:group_name",
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "group_name",
+  "disabled",
+  "selection_type",
+  "section_break_modifiers",
+  "modifiers",
+  "section_break_scope",
+  "apply_to_all_items",
+  "item_groups",
+  "column_break_scope",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Group Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "default": "Multiple",
+   "description": "Whether the cashier can pick more than one modifier from this group per line.",
+   "fieldname": "selection_type",
+   "fieldtype": "Select",
+   "label": "Selection Type",
+   "options": "Multiple\nSingle"
+  },
+  {
+   "fieldname": "section_break_modifiers",
+   "fieldtype": "Section Break",
+   "label": "Modifiers"
+  },
+  {
+   "fieldname": "modifiers",
+   "fieldtype": "Table",
+   "label": "Modifiers",
+   "options": "Restaurant Modifier Group Modifier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_scope",
+   "fieldtype": "Section Break",
+   "label": "Applies To"
+  },
+  {
+   "default": "0",
+   "description": "If checked, this group is offered on every sellable item and the lists below are ignored.",
+   "fieldname": "apply_to_all_items",
+   "fieldtype": "Check",
+   "label": "Apply to All Items"
+  },
+  {
+   "depends_on": "eval:!doc.apply_to_all_items",
+   "fieldname": "item_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Item Groups",
+   "options": "Restaurant Modifier Group Item Group"
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:!doc.apply_to_all_items",
+   "fieldname": "items",
+   "fieldtype": "Table MultiSelect",
+   "label": "Items",
+   "options": "Restaurant Modifier Group Item"
+  }
+ ],
+ "icon": "restaurant",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Modifier Group",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

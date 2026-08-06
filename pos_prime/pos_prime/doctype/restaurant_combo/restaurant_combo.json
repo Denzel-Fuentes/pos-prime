@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "autoname": "field:combo_name",
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "combo_name",
+  "disabled",
+  "column_break_1",
+  "company",
+  "currency",
+  "combo_price",
+  "section_break_1",
+  "print_label",
+  "sort_order",
+  "column_break_2",
+  "image",
+  "description",
+  "section_break_slots",
+  "slots"
+ ],
+ "fields": [
+  {
+   "fieldname": "combo_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Combo Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "company.default_currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "combo_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Combo Price",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Short name printed on the kitchen ticket, e.g. \"COMPLETO\". Falls back to Combo Name if blank.",
+   "fieldname": "print_label",
+   "fieldtype": "Data",
+   "label": "Print Label"
+  },
+  {
+   "default": "0",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_slots",
+   "fieldtype": "Section Break",
+   "label": "Components"
+  },
+  {
+   "description": "Each row is a component slot the cashier must fill (e.g. Sopa → Item Group \"Sopas\"). One POS Invoice Item line is produced per slot per combo sold.",
+   "fieldname": "slots",
+   "fieldtype": "Table",
+   "label": "Slots",
+   "options": "Restaurant Combo Slot",
+   "reqd": 1
+  }
+ ],
+ "icon": "restaurant",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Combo",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

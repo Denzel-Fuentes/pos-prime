@@ -1,0 +1,245 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "pos_invoice",
+  "pos_profile",
+  "column_break_1",
+  "company",
+  "customer",
+  "posting_date",
+  "posting_time",
+  "section_break_totals",
+  "order_total",
+  "currency",
+  "column_break_totals",
+  "has_dine_in",
+  "has_takeaway",
+  "section_break_comanda",
+  "comanda_status",
+  "comanda_printed_at",
+  "comanda_error",
+  "section_break_combos",
+  "combos",
+  "section_break_items",
+  "items",
+  "section_break_modifiers",
+  "modifiers",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "RO-.YYYY.-.#####"
+  },
+  {
+   "fieldname": "pos_invoice",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "POS Invoice",
+   "options": "POS Invoice",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "description": "Denormalized from the POS Invoice so reports don't need to join it.",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Posting Date",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Posting Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_totals",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "order_total",
+   "fieldtype": "Currency",
+   "label": "Order Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "has_dine_in",
+   "fieldtype": "Check",
+   "label": "Has Dine-in Items",
+   "read_only": 1
+  },
+  {
+   "fieldname": "has_takeaway",
+   "fieldtype": "Check",
+   "label": "Has Takeaway Items",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_comanda",
+   "fieldtype": "Section Break",
+   "label": "Kitchen Ticket"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Not Printed",
+   "fieldname": "comanda_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Comanda Status",
+   "options": "Not Printed\nPrinted\nFailed\nNot Required",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "comanda_printed_at",
+   "fieldtype": "Datetime",
+   "label": "Comanda Printed At",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "comanda_error",
+   "fieldtype": "Small Text",
+   "label": "Comanda Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_combos",
+   "fieldtype": "Section Break",
+   "label": "Combo Instances"
+  },
+  {
+   "fieldname": "combos",
+   "fieldtype": "Table",
+   "label": "Combos",
+   "options": "Restaurant Order Combo"
+  },
+  {
+   "fieldname": "section_break_items",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Restaurant Order Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_modifiers",
+   "fieldtype": "Section Break",
+   "label": "Modifiers"
+  },
+  {
+   "fieldname": "modifiers",
+   "fieldtype": "Table",
+   "label": "Modifiers",
+   "options": "Restaurant Order Modifier"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Restaurant Order",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "icon": "restaurant",
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Order",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "pos_invoice"
+}

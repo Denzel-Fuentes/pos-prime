@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "combo",
+  "combo_name",
+  "instance_no",
+  "combo_price",
+  "destination",
+  "notes",
+  "combo_uid",
+  "sort_index"
+ ],
+ "fields": [
+  {
+   "fieldname": "combo",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Combo",
+   "options": "Restaurant Combo",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "combo.combo_name",
+   "fieldname": "combo_name",
+   "fieldtype": "Data",
+   "label": "Combo Name",
+   "read_only": 1
+  },
+  {
+   "description": "1-based index of this instance within the order, e.g. \"Completo #2\".",
+   "fieldname": "instance_no",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Instance No",
+   "reqd": 1
+  },
+  {
+   "fieldname": "combo_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Combo Price",
+   "reqd": 1
+  },
+  {
+   "fieldname": "destination",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Destination",
+   "options": "Mesa\nPara llevar"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "description": "Client-generated id shared by every Restaurant Order Item row belonging to this combo instance.",
+   "fieldname": "combo_uid",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Combo UID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sort_index",
+   "fieldtype": "Int",
+   "label": "Sort Index"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Order Combo",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

@@ -1,0 +1,107 @@
+{
+ "actions": [],
+ "creation": "2026-08-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enable_restaurant_mode",
+  "default_destination",
+  "combo_strip_label",
+  "section_break_comanda",
+  "print_comanda_on_payment",
+  "comanda_background_job",
+  "fail_silently",
+  "column_break_comanda",
+  "label_dine_in",
+  "label_takeaway"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enable_restaurant_mode",
+   "fieldtype": "Check",
+   "label": "Enable Restaurant Mode"
+  },
+  {
+   "default": "Mesa",
+   "fieldname": "default_destination",
+   "fieldtype": "Select",
+   "label": "Default Destination",
+   "options": "Mesa\nPara llevar"
+  },
+  {
+   "default": "Combos",
+   "fieldname": "combo_strip_label",
+   "fieldtype": "Data",
+   "label": "Combo Strip Label"
+  },
+  {
+   "fieldname": "section_break_comanda",
+   "fieldtype": "Section Break",
+   "label": "Kitchen Ticket"
+  },
+  {
+   "default": "1",
+   "fieldname": "print_comanda_on_payment",
+   "fieldtype": "Check",
+   "label": "Print Kitchen Ticket on Payment"
+  },
+  {
+   "default": "1",
+   "description": "Print via a background job (needs an RQ worker running). Turn off only for dev benches with no worker — printing then happens inline and can add a few seconds to checkout.",
+   "fieldname": "comanda_background_job",
+   "fieldtype": "Check",
+   "label": "Print in Background"
+  },
+  {
+   "default": "1",
+   "description": "If a printer is unreachable, complete the sale anyway and mark the ticket as Failed instead of blocking checkout.",
+   "fieldname": "fail_silently",
+   "fieldtype": "Check",
+   "label": "Never Block Checkout on a Printer Failure"
+  },
+  {
+   "fieldname": "column_break_comanda",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "MESA",
+   "fieldname": "label_dine_in",
+   "fieldtype": "Data",
+   "label": "Dine-in Label (on ticket)"
+  },
+  {
+   "default": "PARA LLEVAR",
+   "fieldname": "label_takeaway",
+   "fieldtype": "Data",
+   "label": "Takeaway Label (on ticket)"
+  }
+ ],
+ "icon": "restaurant",
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Prime",
+ "name": "Restaurant Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

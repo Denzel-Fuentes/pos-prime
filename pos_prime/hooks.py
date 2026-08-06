@@ -32,3 +32,11 @@ website_redirects = []
 
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
+
+after_install = "pos_prime.restaurant.install.after_install"
+
+doc_events = {
+	"POS Invoice": {
+		"on_cancel": "pos_prime.restaurant.hooks_handlers.cancel_linked_restaurant_order",
+	}
+}
