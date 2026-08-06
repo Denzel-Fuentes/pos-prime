@@ -110,6 +110,23 @@ export interface CartItem {
   is_free_item?: boolean
   pricing_rules?: string | null
   price_list_rate?: number | null
+  // Restaurant module — combo linkage. combo_uid groups every component
+  // line of one combo instance; empty/null means this line is sold
+  // individually. Rate distribution and slot validation are always
+  // re-derived server-side (pos_prime.api.restaurant.create_restaurant_sale)
+  // — these fields are for display/grouping and for round-tripping through
+  // held-order drafts, not something the server trusts as-is.
+  combo_uid?: string | null
+  combo?: string | null
+  combo_label?: string | null
+  combo_slot_label?: string | null
+  combo_slot_idx?: number | null
+  // Set on combo lines by ComboBuilderDialog. A general per-line
+  // destination toggle for loose items too — and a note field — land in
+  // the restaurant module's next increment; the server already defaults
+  // missing destinations (create_restaurant_sale) so this is safe to
+  // leave unset until then.
+  destination?: RestaurantDestination | null
 }
 
 export interface TaxRow {
@@ -344,6 +361,10 @@ export interface POSInvoice {
   items: InvoiceItem[]
   payments: PaymentEntry[]
   taxes: TaxRow[]
+
+  // Restaurant module — set once create_restaurant_sale builds the
+  // linked Restaurant Order alongside this invoice.
+  restaurant_order?: string | null
 }
 
 export interface InvoiceItem {
@@ -384,6 +405,16 @@ export interface InvoiceItem {
   weight_per_unit?: number
   total_weight?: number
   weight_uom?: string | null
+  // Restaurant module — echoed back from pos_prime_* custom fields on
+  // POS Invoice Item, see pos_prime/api/_utils.py::format_invoice_item.
+  line_uid?: string | null
+  destination?: 'Mesa' | 'Para llevar' | null
+  notes?: string | null
+  combo_uid?: string | null
+  combo?: string | null
+  combo_slot_idx?: number | null
+  combo_label?: string | null
+  modifiers_summary?: string | null
 }
 
 export interface OpeningEntry {
@@ -411,4 +442,73 @@ export interface ClosingEntry {
     closing_amount: number
     difference: number
   }[]
+}
+
+// ── Restaurant module ──────────────────────────────────────────────────
+
+export type RestaurantDestination = 'Mesa' | 'Para llevar'
+
+/** One component slot in a combo, as returned by
+ * pos_prime.api.restaurant.get_combo_options. eligible_groups is the
+ * slot's item_group already expanded through child groups, so the
+ * frontend can filter its already-loaded catalog client-side. */
+export interface RestaurantComboSlotOption {
+  slot_idx: number
+  slot_label: string
+  item_group: string
+  eligible_groups: string[]
+  default_item: string | null
+  allow_modifiers: boolean
+}
+
+/** Combo summary as listed by get_restaurant_config — enough to render
+ * a tile in ComboStrip. Slot detail is fetched separately, per combo, by
+ * get_combo_options when the picker dialog opens. */
+export interface RestaurantCombo {
+  name: string
+  combo_name: string
+  combo_price: number
+  currency: string
+  print_label: string | null
+  image: string | null
+  description: string | null
+  sort_order: number
+}
+
+export interface RestaurantModifier {
+  modifier: string
+  is_default: boolean
+  modifier_name: string
+  print_label: string | null
+}
+
+export interface RestaurantModifierGroup {
+  name: string
+  group_name: string
+  selection_type: 'Multiple' | 'Single'
+  apply_to_all_items: boolean
+  modifiers: RestaurantModifier[]
+  item_groups?: string[]
+  items?: string[]
+}
+
+export interface RestaurantSettings {
+  enable_restaurant_mode: boolean
+  default_destination: RestaurantDestination | null
+  combo_strip_label: string | null
+  print_comanda_on_payment: boolean
+  comanda_background_job: boolean
+  fail_silently: boolean
+  label_dine_in: string | null
+  label_takeaway: string | null
+}
+
+/** Response shape of pos_prime.api.restaurant.get_restaurant_config —
+ * fetched once at POS session start. */
+export interface RestaurantConfig {
+  settings: RestaurantSettings
+  combos: RestaurantCombo[]
+  modifier_groups: RestaurantModifierGroup[]
+  has_printer: boolean
+  destinations: RestaurantDestination[]
 }

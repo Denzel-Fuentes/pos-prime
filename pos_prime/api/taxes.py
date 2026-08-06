@@ -100,6 +100,7 @@ def calculate_taxes(
             # lines can share an item_code — batch/serial items already do
             # this, restaurant combo components will too).
             row._line_uid = item_data.get("line_uid")
+            row._combo_uid = item_data.get("combo_uid")
 
         # Use ERPNext's built-in tax calculation
         invoice.set_missing_values()
@@ -125,6 +126,13 @@ def calculate_taxes(
             for idx in range(original_count):
                 item = invoice.items[idx]
                 if getattr(item, "is_free_item", 0):
+                    continue
+                # Combo components are priced by distribute_combo_price
+                # (see pos_prime/restaurant/pricing.py) and locked at sale
+                # time — a pricing rule discounting one here would make
+                # the live preview disagree with what create_restaurant_sale
+                # actually charges.
+                if getattr(item, "_combo_uid", None):
                     continue
 
                 item_args = frappe._dict({

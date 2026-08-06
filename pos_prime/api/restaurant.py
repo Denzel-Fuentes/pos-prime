@@ -43,13 +43,9 @@ def get_restaurant_config(pos_profile):
 		],
 		order_by="sort_order asc, combo_name asc",
 	)
-	for combo in combos:
-		combo["slots"] = frappe.get_all(
-			"Restaurant Combo Slot",
-			filters={"parent": combo.name},
-			fields=["slot_label", "item_group", "include_child_groups", "default_item", "allow_modifiers"],
-			order_by="idx asc",
-		)
+	# Slot detail (with item-group expansion) is fetched per-combo, on
+	# demand, by get_combo_options — mirrors the batch/serial selector
+	# pattern (fetch when the picker opens, not for every combo up front).
 
 	modifier_groups = frappe.get_all(
 		"Restaurant Modifier Group",
@@ -273,6 +269,13 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 	invoice rolls back with it. Never call frappe.db.commit() on this
 	path; it would break that guarantee.
 	"""
+	# frappe.call(method, **frappe.form_dict) always includes "cmd" (the
+	# dotted method path itself, used for routing) alongside the real
+	# request body — harmless for a fully-explicit signature like
+	# create_pos_invoice's, but **kwargs here would otherwise forward it
+	# straight into _create_pos_invoice_doc(), which doesn't accept it.
+	kwargs.pop("cmd", None)
+
 	validate_pos_access(pos_profile)
 
 	if isinstance(items, str):

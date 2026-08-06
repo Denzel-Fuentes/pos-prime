@@ -10,6 +10,11 @@ const props = defineProps<{
   item: CartItem
   index: number
   selected: boolean
+  // True for a component row rendered inside ComboCartGroup. Qty is fixed
+  // at 1 by the price-distribution algorithm and deletion removes the
+  // whole combo instance (via the group header), not just this row — so
+  // both controls are redundant/misleading here and are hidden.
+  isComboComponent?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -96,8 +101,8 @@ const { formatCurrency } = useCurrency()
         </div>
       </div>
 
-      <!-- Qty Controls (hidden for free items) -->
-      <div v-if="!item.is_free_item" class="flex items-center gap-0.5 shrink-0">
+      <!-- Qty Controls (hidden for free items and combo components) -->
+      <div v-if="!item.is_free_item && !isComboComponent" class="flex items-center gap-0.5 shrink-0">
         <button
           @click.stop="emit('updateQty', index, item.qty - 1)"
           aria-label="Decrease quantity"
@@ -116,9 +121,11 @@ const { formatCurrency } = useCurrency()
           <Plus :size="14" />
         </button>
       </div>
-      <div v-else class="shrink-0">
+      <div v-else-if="item.is_free_item" class="shrink-0">
         <span class="text-xs font-bold text-green-600 dark:text-green-400">&times;{{ item.qty }}</span>
       </div>
+      <div v-else class="w-[88px]" />
+      <!-- combo component: qty is always 1, nothing to show here (keeps column alignment) -->
 
       <!-- Amount -->
       <div class="w-[72px] text-right shrink-0">
@@ -127,9 +134,11 @@ const { formatCurrency } = useCurrency()
         </span>
       </div>
 
-      <!-- Delete (hidden for free items — they're managed by pricing rules) -->
+      <!-- Delete (hidden for free items — managed by pricing rules — and
+           for combo components, whose whole instance deletes together via
+           the ComboCartGroup header instead) -->
       <button
-        v-if="!item.is_free_item"
+        v-if="!item.is_free_item && !isComboComponent"
         @click.stop="emit('remove', index)"
         aria-label="Remove item"
         class="w-7 h-7 rounded-md flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-90 transition-all duration-150 opacity-0 group-hover:opacity-100"

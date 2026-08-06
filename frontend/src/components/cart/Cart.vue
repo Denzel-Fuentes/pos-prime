@@ -17,7 +17,9 @@ import InvoiceOptions from './InvoiceOptions.vue'
 import NumPad from './NumPad.vue'
 import CustomerSelector from '@/components/customer/CustomerSelector.vue'
 import CustomerDetailPanel from '@/components/customer/CustomerDetailPanel.vue'
+import ComboCartGroup from '@/components/restaurant/ComboCartGroup.vue'
 import { ShoppingCart, CreditCard, Pause, Check } from 'lucide-vue-next'
+import type { CartItem } from '@/types'
 
 const { isTouchDevice } = useTouchDevice()
 
@@ -60,6 +62,10 @@ const numPadLabel = computed(() => {
 function onItemSelect(index: number) {
   const item = cartStore.items[index]
   if (item?.is_free_item) return // Free items are not editable
+  // Combo component rate/qty is fixed by distribute_combo_price and
+  // overwritten server-side on sale regardless of any client edit — don't
+  // offer an editor that would silently disagree with the final receipt.
+  if (item?.combo_uid) return
   cartStore.selectItem(index)
   showNumPad.value = true
   numPadMode.value = 'qty'
@@ -133,6 +139,57 @@ watch(
 const emit = defineEmits<{
   holdOrder: []
 }>()
+
+// Group cart lines by combo_uid for rendering, preserving each line's real
+// index so the existing index-based handlers (select/updateQty/remove)
+// keep working unchanged. A parallel "combo instances" list isn't used —
+// applyPricingRuleData() and $reset() both replace cartStore.items
+// wholesale, so any separate list would drift; deriving from items here
+// can't.
+type CartDisplayGroup =
+  | { kind: 'item'; index: number; item: CartItem }
+  | {
+      kind: 'combo'
+      comboUid: string
+      label: string
+      price: number
+      destination: string | null
+      lines: { index: number; item: CartItem }[]
+    }
+
+const displayGroups = computed<CartDisplayGroup[]>(() => {
+  const groups: CartDisplayGroup[] = []
+  const comboGroups = new Map<string, Extract<CartDisplayGroup, { kind: 'combo' }>>()
+
+  cartStore.items.forEach((item, index) => {
+    if (!item.combo_uid) {
+      groups.push({ kind: 'item', index, item })
+      return
+    }
+    let group = comboGroups.get(item.combo_uid)
+    if (!group) {
+      // combo_label is always "{instance label} · {slot label}" (set by
+      // restaurantStore.addComboToCart / create_restaurant_sale) — every
+      // line in the group shares the same prefix, so any line can supply
+      // the group's own label.
+      const parts = (item.combo_label || item.combo || '').split(' · ')
+      group = {
+        kind: 'combo',
+        comboUid: item.combo_uid,
+        label: parts.length > 1 ? parts.slice(0, -1).join(' · ') : parts[0],
+        price: 0,
+        destination: item.destination ?? null,
+        lines: [],
+      }
+      comboGroups.set(item.combo_uid, group)
+      groups.push(group)
+    }
+    group.lines.push({ index, item })
+    group.price += item.amount
+  })
+
+  return groups
+})
 </script>
 
 <template>
@@ -169,16 +226,28 @@ const emit = defineEmits<{
         <span class="text-sm font-medium text-gray-400 dark:text-gray-500">{{ __('No items in cart') }}</span>
       </div>
       <TransitionGroup v-else name="cart-item" tag="div">
-        <CartItemComp
-          v-for="(item, index) in cartStore.items"
-          :key="item.uid"
-          :item="item"
-          :index="index"
-          :selected="cartStore.selectedItemIndex === index"
-          @select="onItemSelect"
-          @update-qty="onUpdateQty"
-          @remove="onRemove"
-        />
+        <template v-for="group in displayGroups" :key="group.kind === 'combo' ? group.comboUid : group.item.uid">
+          <ComboCartGroup
+            v-if="group.kind === 'combo'"
+            :combo-uid="group.comboUid"
+            :label="group.label"
+            :price="group.price"
+            :destination="group.destination"
+            :lines="group.lines"
+            :selected-index="cartStore.selectedItemIndex"
+            @select="onItemSelect"
+            @remove-instance="cartStore.removeComboInstance"
+          />
+          <CartItemComp
+            v-else
+            :item="group.item"
+            :index="group.index"
+            :selected="cartStore.selectedItemIndex === group.index"
+            @select="onItemSelect"
+            @update-qty="onUpdateQty"
+            @remove="onRemove"
+          />
+        </template>
       </TransitionGroup>
     </div>
 

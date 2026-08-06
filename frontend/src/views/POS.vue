@@ -11,6 +11,7 @@ import { useCustomerStore } from '@/stores/customer'
 import { usePaymentStore } from '@/stores/payment'
 import { useDraftsStore } from '@/stores/drafts'
 import { useItemsStore } from '@/stores/items'
+import { useRestaurantStore } from '@/stores/restaurant'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useBroadcastDisplay, type DisplayMessage } from '@/composables/useBroadcastDisplay'
 import { call } from 'frappe-ui'
@@ -34,6 +35,7 @@ const customerStore = useCustomerStore()
 const paymentStore = usePaymentStore()
 const draftsStore = useDraftsStore()
 const itemsStore = useItemsStore()
+const restaurantStore = useRestaurantStore()
 
 // Customer display — scoped by POS Opening Entry so multiple sessions don't conflict
 const { sendUpdate: sendDisplayUpdate, onUpdate: onDisplayMessage, close: closeDisplay } = useBroadcastDisplay(sessionStore.openingEntry || undefined)
@@ -180,6 +182,11 @@ onMounted(async () => {
     // Set default customer from POS Profile
     if (settingsStore.posProfile?.customer && !customerStore.customer) {
       await customerStore.setCustomer(settingsStore.posProfile.customer)
+    }
+    if (sessionStore.posProfile) {
+      restaurantStore.fetchConfig(sessionStore.posProfile).catch((e) => {
+        console.error('Failed to load restaurant config:', e)
+      })
     }
     sendDisplayUpdate({ type: 'idle' })
     // Send company info to display

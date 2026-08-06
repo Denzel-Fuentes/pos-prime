@@ -5,6 +5,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { call } from 'frappe-ui'
 import type { PaymentEntry, POSInvoice, InvoiceOptions } from '@/types'
+import { useRestaurantStore } from '@/stores/restaurant'
 
 export const usePaymentStore = defineStore('payment', () => {
   const payments = ref<PaymentEntry[]>([])
@@ -96,7 +97,16 @@ export const usePaymentStore = defineStore('payment', () => {
   } & Partial<InvoiceOptions>) {
     submitting.value = true
     try {
-      const data = await call('pos_prime.api.invoices.create_pos_invoice', args)
+      // Restaurant mode always routes through create_restaurant_sale, even
+      // for a cart with no combos in it — it's also what creates the
+      // Restaurant Order that carries every line's destination (and, once
+      // wired, notes/modifiers), which plain create_pos_invoice knows
+      // nothing about.
+      const restaurantStore = useRestaurantStore()
+      const method = restaurantStore.enabled
+        ? 'pos_prime.api.restaurant.create_restaurant_sale'
+        : 'pos_prime.api.invoices.create_pos_invoice'
+      const data = await call(method, args)
       lastInvoice.value = data
       return data
     } catch (e) {

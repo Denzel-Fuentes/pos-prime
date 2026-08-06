@@ -130,7 +130,35 @@ export const useCartStore = defineStore('cart', () => {
     return { uid: cartItem.uid, error: null }
   }
 
+  /** Push every component line of one combo instance atomically — never
+   * merges (each combo instance is independently identifiable, per its
+   * shared combo_uid). Rates already come priced from the server preview
+   * (restaurantStore.addComboToCart), so no recalc is needed here beyond
+   * the usual server tax pass. */
+  function addComboLines(lines: CartItem[]) {
+    items.value.push(...lines)
+    selectedItemIndex.value = items.value.length - 1
+    debounceTaxCalculation()
+  }
+
+  /** Remove every line of one combo instance. A Completo missing its
+   * segundo isn't a Completo — deleting any one component removes the
+   * whole thing (see removeItem, which redirects here for combo lines). */
+  function removeComboInstance(comboUid: string) {
+    const selectedUid =
+      selectedItemIndex.value !== null ? items.value[selectedItemIndex.value]?.uid : null
+    items.value = items.value.filter((i) => i.combo_uid !== comboUid)
+    const reselectedIndex = selectedUid ? items.value.findIndex((i) => i.uid === selectedUid) : -1
+    selectedItemIndex.value = reselectedIndex >= 0 ? reselectedIndex : null
+    debounceTaxCalculation()
+  }
+
   function updateQty(index: number, qty: number, availableQty?: number, validateStock = true): string | null {
+    // Combo component quantities are fixed at 1 by the price-distribution
+    // algorithm (see pos_prime/restaurant/pricing.py) — qty > 1 would
+    // reintroduce rounding error and break "amount sums to combo_price".
+    // Two of the same combo are two instances, not one line at qty=2.
+    if (items.value[index]?.combo_uid) return null
     if (qty <= 0) {
       removeItem(index)
       return null
@@ -218,6 +246,11 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function removeItem(index: number) {
+    const target = items.value[index]
+    if (target?.combo_uid) {
+      removeComboInstance(target.combo_uid)
+      return
+    }
     items.value.splice(index, 1)
     if (selectedItemIndex.value === index) {
       selectedItemIndex.value = null
@@ -426,6 +459,8 @@ export const useCartStore = defineStore('cart', () => {
     totalItems,
     addItem,
     addConfiguredItem,
+    addComboLines,
+    removeComboInstance,
     updateQty,
     updateRate,
     updateItemDiscount,

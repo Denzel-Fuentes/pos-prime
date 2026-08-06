@@ -7,21 +7,25 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useItemsStore } from '@/stores/items'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
+import { useRestaurantStore } from '@/stores/restaurant'
 import { useBarcodeScanner } from '@/composables/useBarcodeScanner'
 import ItemCard from './ItemCard.vue'
 import ItemSearch from './ItemSearch.vue'
 import ItemGroupFilter from './ItemGroupFilter.vue'
 import BatchSerialSelector from './BatchSerialSelector.vue'
 import CameraScanner from '@/components/scanner/CameraScanner.vue'
+import ComboStrip from '@/components/restaurant/ComboStrip.vue'
+import ComboBuilderDialog from '@/components/restaurant/ComboBuilderDialog.vue'
 import { Package, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
 import { useDeskMode } from '@/composables/useDeskMode'
-import type { Item, CartItem } from '@/types'
+import type { Item, CartItem, RestaurantCombo } from '@/types'
 
 const { isDeskMode } = useDeskMode()
 
 const itemsStore = useItemsStore()
 const cartStore = useCartStore()
 const settingsStore = useSettingsStore()
+const restaurantStore = useRestaurantStore()
 const scrollContainer = ref<HTMLElement | null>(null)
 const showCameraScanner = ref(false)
 const columnCount = ref(4)
@@ -104,6 +108,17 @@ function onGroupSelect(group: string) {
 
 // Batch/Serial selector state
 const batchSerialItem = ref<Item | null>(null)
+
+// Combo builder state
+const comboBeingBuilt = ref<RestaurantCombo | null>(null)
+
+function onComboSelect(combo: RestaurantCombo) {
+  comboBeingBuilt.value = combo
+}
+
+function onComboConfirm() {
+  comboBeingBuilt.value = null
+}
 
 function showStockError(msg: string) {
   const frappe = (window as any).frappe
@@ -241,6 +256,9 @@ const headerLabel = computed(() => {
       />
     </div>
 
+    <!-- Combo strip -->
+    <ComboStrip :search-term="itemsStore.searchTerm" @select="onComboSelect" />
+
     <!-- Mobile/tablet horizontal categories -->
     <ItemGroupFilter
       v-if="itemsStore.itemGroups.length > 1"
@@ -333,6 +351,14 @@ const headerLabel = computed(() => {
       :has-serial-no="batchSerialItem.has_serial_no"
       @confirm="onBatchSerialConfirm"
       @close="batchSerialItem = null"
+    />
+
+    <!-- Combo builder dialog -->
+    <ComboBuilderDialog
+      v-if="comboBeingBuilt"
+      :combo="comboBeingBuilt"
+      @confirm="onComboConfirm"
+      @close="comboBeingBuilt = null"
     />
   </div>
 </template>

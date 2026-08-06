@@ -62,6 +62,15 @@ RESTAURANT_CUSTOM_FIELDS = {
 			"no_copy": 1,
 		},
 		{
+			"fieldname": "pos_prime_combo_slot_idx",
+			"fieldtype": "Int",
+			"label": "Combo Slot Index",
+			"insert_after": "pos_prime_combo",
+			"hidden": 1,
+			"print_hide": 1,
+			"no_copy": 1,
+		},
+		{
 			"fieldname": "pos_prime_combo_label",
 			"fieldtype": "Data",
 			"label": "Combo Instance",

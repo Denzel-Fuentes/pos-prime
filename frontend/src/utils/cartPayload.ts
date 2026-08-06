@@ -58,6 +58,12 @@ export function makeCartItem(item: Item, overrides: Partial<CartItem> = {}): Car
     project: null,
     weight_per_unit: item.weight_per_unit || null,
     weight_uom: item.weight_uom || null,
+    combo_uid: null,
+    combo: null,
+    combo_label: null,
+    combo_slot_label: null,
+    combo_slot_idx: null,
+    destination: null,
     ...overrides,
   }
 }
@@ -127,6 +133,11 @@ export function fromInvoiceItem(item: InvoiceItem, overrides: Partial<CartItem> 
     project: item.project || null,
     weight_per_unit: item.weight_per_unit || null,
     weight_uom: item.weight_uom || null,
+    combo_uid: item.combo_uid || null,
+    combo: item.combo || null,
+    combo_label: item.combo_label || null,
+    combo_slot_idx: item.combo_slot_idx ?? null,
+    destination: item.destination || null,
     ...overrides,
   }
 }
@@ -156,6 +167,12 @@ export function toPayloadItem(item: CartItem) {
     project: item.project || undefined,
     weight_per_unit: item.weight_per_unit || undefined,
     weight_uom: item.weight_uom || undefined,
+    combo_uid: item.combo_uid || undefined,
+    combo: item.combo || undefined,
+    combo_label: item.combo_label || undefined,
+    combo_slot_label: item.combo_slot_label || undefined,
+    combo_slot_idx: item.combo_slot_idx ?? undefined,
+    destination: item.destination || undefined,
   }
 }
 
@@ -179,6 +196,10 @@ export function toTaxPayloadItem(item: CartItem) {
     item_tax_template: item.item_tax_template || '',
     margin_type: item.margin_type || '',
     margin_rate_or_amount: item.margin_rate_or_amount || 0,
+    // Lets calculate_taxes skip pricing-rule re-evaluation on combo
+    // components (their rate is fixed by distribute_combo_price) — see
+    // pos_prime/api/taxes.py.
+    combo_uid: item.combo_uid || undefined,
   }
 }
 

@@ -128,6 +128,8 @@ def build_item_dict(item_data, profile):
             item_dict["pos_prime_combo_uid"] = item_data["combo_uid"]
         if item_data.get("combo"):
             item_dict["pos_prime_combo"] = item_data["combo"]
+        if item_data.get("combo_slot_idx") is not None:
+            item_dict["pos_prime_combo_slot_idx"] = item_data["combo_slot_idx"]
         if item_data.get("combo_label"):
             item_dict["pos_prime_combo_label"] = item_data["combo_label"]
         if item_data.get("modifiers_summary"):
@@ -538,6 +540,7 @@ def format_invoice_item(item):
         item_dict["notes"] = item.get("pos_prime_notes")
         item_dict["combo_uid"] = item.get("pos_prime_combo_uid")
         item_dict["combo"] = item.get("pos_prime_combo")
+        item_dict["combo_slot_idx"] = item.get("pos_prime_combo_slot_idx")
         item_dict["combo_label"] = item.get("pos_prime_combo_label")
         item_dict["modifiers_summary"] = item.get("pos_prime_modifiers")
 
