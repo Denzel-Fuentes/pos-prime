@@ -25,3 +25,6 @@ posify/public/frontend/
 *.swo
 *~
 .DS_Store
+
+# Local dev session logs (e.g. .codex-vite-*.log, bench_start.log)
+*.log
