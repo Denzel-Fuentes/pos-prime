@@ -58,8 +58,9 @@ yarn dev
 - **Frontend** (`frontend/`) — Vue 3 + TypeScript + Tailwind CSS (Vite)
 
 ### Rules
-- POS Prime does NOT modify ERPNext schema — no custom fields or doctypes
+- Outside the restaurant module, POS Prime does NOT modify ERPNext schema — no custom fields or doctypes
 - Use ERPNext standard doctypes (POS Invoice, POS Profile, Item, Customer, etc.)
+- Exception: the restaurant/pensión module (`Restaurant Order` and related doctypes, `pos_prime_*` custom fields on POS Invoice/POS Invoice Item) is a deliberate, scoped break of the rule above — needed so per-line dine-in/takeaway, kitchen notes and combo data survive POS Prime's draft (hold/resume) cycle, which operates on real `POS Invoice` documents. See `CLAUDE.md` for details. Don't extend this exception to unrelated features.
 - Keep the frontend fast — optimize for touch screens and barcode scanners
 - Follow Vue 3 Composition API patterns
 - Use TypeScript for type safety
