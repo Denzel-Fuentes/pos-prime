@@ -348,7 +348,11 @@ export class POSPage {
   }
 
   async resumeHeldOrder(index: number) {
-    await this.page.locator('button:has-text("Resume")').nth(index).click()
+    // Text-based on purpose (no stable aria-label on this button), but
+    // matches both languages — this button's label is translated ("Resume"
+    // -> "Reanudar") on a Spanish-localized site, unlike most of this file's
+    // aria-label-based locators.
+    await this.page.locator('button:has-text("Resume"), button:has-text("Reanudar")').nth(index).click()
     await this.page.waitForTimeout(1000)
   }
 

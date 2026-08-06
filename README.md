@@ -38,7 +38,7 @@ ERPNext's built-in POS is functional but limited. POS Prime is a complete replac
 
 ## Zero Modifications to ERPNext
 
-POS Prime does **not** add custom fields, custom doctypes, or modify any existing ERPNext schema. It works entirely with ERPNext's standard doctypes:
+POS Prime's core does **not** add custom fields, custom doctypes, or modify any existing ERPNext schema. It works entirely with ERPNext's standard doctypes:
 
 - **POS Profile** - your existing POS configuration
 - **POS Opening Entry** - standard shift management
@@ -51,6 +51,8 @@ POS Prime does **not** add custom fields, custom doctypes, or modify any existin
 - Uninstall cleanly - remove POS Prime and nothing changes in your ERPNext data
 - No data lock-in - every invoice POS Prime creates is a standard POS Invoice, visible in Desk and reports
 - Works alongside ERPNext's built-in POS - use both if you want
+
+> **Restaurant module note:** the optional restaurant/pensión extension (dine-in vs. takeaway, kitchen notes, modifiers, combos, kitchen ticket printing — off by default, see `Restaurant Settings`) is a deliberate, scoped exception to this: it adds its own doctypes and a handful of custom fields on `POS Invoice Item`, needed so per-line restaurant data survives held-order drafts. It doesn't touch anything else in ERPNext's schema. See `CLAUDE.md` for details.
 
 ---
 
