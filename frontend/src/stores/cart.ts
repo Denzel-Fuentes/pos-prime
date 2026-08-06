@@ -5,6 +5,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { call } from 'frappe-ui'
 import type { CartItem, Item, TaxRow, InvoiceOptions } from '@/types'
+import { makeCartItem, makeFreeCartItem, toTaxPayloadItem, type FreeItemData } from '@/utils/cartPayload'
 
 let taxRequestId = 0
 
@@ -80,7 +81,7 @@ export const useCartStore = defineStore('cart', () => {
 
     // For batch/serial items, don't merge — they get separate lines
     if (item.has_batch_no || item.has_serial_no) {
-      items.value.push(createCartItem(item))
+      items.value.push(makeCartItem(item))
       selectedItemIndex.value = items.value.length - 1
       debounceTaxCalculation()
       return null
@@ -94,39 +95,39 @@ export const useCartStore = defineStore('cart', () => {
       recalcItemAmount(existingIndex)
       selectedItemIndex.value = existingIndex
     } else {
-      items.value.push(createCartItem(item))
+      items.value.push(makeCartItem(item))
       selectedItemIndex.value = items.value.length - 1
     }
     debounceTaxCalculation()
     return null
   }
 
-  function createCartItem(item: Item): CartItem {
-    return {
-      item_code: item.item_code,
-      item_name: item.item_name,
-      rate: item.rate,
-      qty: 1,
-      amount: item.rate,
-      uom: item.stock_uom,
-      discount_percentage: 0,
-      discount_amount: 0,
-      image: item.image,
-      stock_uom: item.stock_uom,
-      has_serial_no: item.has_serial_no,
-      has_batch_no: item.has_batch_no,
-      serial_no: null,
-      batch_no: null,
-      serial_and_batch_bundle: null,
-      conversion_factor: 1,
-      item_tax_template: item.item_tax_template || null,
-      margin_type: null,
-      margin_rate_or_amount: 0,
-      description: item.description || null,
-      project: null,
-      weight_per_unit: item.weight_per_unit || null,
-      weight_uom: item.weight_uom || null,
+  /** Add an item as a brand-new line, configured atomically via `overrides`
+   * (batch/serial, qty, and — from the restaurant module — destination/
+   * notes/modifiers/combo linkage). Unlike addItem(), this never merges
+   * into an existing line, and never leaves the line in an unconfigured
+   * state (no separate push-then-mutate-by-index step). */
+  function addConfiguredItem(
+    item: Item,
+    overrides: Partial<CartItem> = {},
+    validateStock = true
+  ): { uid: string | null; error: string | null } {
+    if (validateStock && item.is_stock_item) {
+      const available = item.actual_qty ?? 0
+      const cartQty = items.value
+        .filter((i) => i.item_code === item.item_code)
+        .reduce((sum, i) => sum + i.qty, 0)
+      if (cartQty >= available) {
+        return { uid: null, error: __('Not enough stock. Available: {0}', [String(available)]) }
+      }
     }
+    const cartItem = makeCartItem(item, overrides)
+    items.value.push(cartItem)
+    const index = items.value.length - 1
+    recalcItemAmount(index)
+    selectedItemIndex.value = index
+    debounceTaxCalculation()
+    return { uid: cartItem.uid, error: null }
   }
 
   function updateQty(index: number, qty: number, availableQty?: number, validateStock = true): string | null {
@@ -280,20 +281,7 @@ export const useCartStore = defineStore('cart', () => {
       const data = await call('pos_prime.api.taxes.calculate_taxes', {
         pos_profile: profile,
         customer: cust,
-        items: items.value.map((item) => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          rate: item.rate,
-          discount_percentage: item.discount_percentage,
-          discount_amount: item.discount_amount || 0,
-          serial_no: item.serial_no || '',
-          batch_no: item.batch_no || '',
-          uom: item.uom || '',
-          conversion_factor: item.conversion_factor || 1,
-          item_tax_template: item.item_tax_template || '',
-          margin_type: item.margin_type || '',
-          margin_rate_or_amount: item.margin_rate_or_amount || 0,
-        })),
+        items: items.value.map(toTaxPayloadItem),
         additional_discount_percentage: additionalDiscountPercentage.value,
         discount_amount: additionalDiscountAmount.value,
         apply_discount_on: applyDiscountOn.value,
@@ -341,8 +329,8 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function applyPricingRuleData(
-    pricingRules: { item_code: string; pricing_rules: string; rate: number; price_list_rate: number; discount_percentage: number; discount_amount: number }[],
-    freeItems: { item_code: string; item_name: string; qty: number; rate: number; amount: number; uom: string; stock_uom: string; pricing_rules: string }[],
+    pricingRules: { item_code: string; line_uid?: string | null; pricing_rules: string; rate: number; price_list_rate: number; discount_percentage: number; discount_amount: number }[],
+    freeItems: FreeItemData[],
   ) {
     // Clear previous pricing rule markers from non-free items
     for (const item of items.value) {
@@ -355,9 +343,16 @@ export const useCartStore = defineStore('cart', () => {
     // Remove old free items (they'll be re-added from fresh data)
     items.value = items.value.filter((i) => !i.is_free_item)
 
-    // Apply pricing rule info to matching cart items
+    // Apply pricing rule info to matching cart items. Matched by `uid` via
+    // the server's echoed `line_uid` — matching by item_code alone (the old
+    // behaviour) silently misapplies the rule when two lines share an
+    // item_code (batch/serial items already do this; combo lines will too).
+    // Falls back to item_code matching only if the server hasn't started
+    // echoing line_uid yet (e.g. mid-deploy).
     for (const pr of pricingRules) {
-      const cartItem = items.value.find((i) => i.item_code === pr.item_code && !i.is_free_item)
+      const cartItem = pr.line_uid
+        ? items.value.find((i) => i.uid === pr.line_uid && !i.is_free_item)
+        : items.value.find((i) => i.item_code === pr.item_code && !i.is_free_item)
       if (cartItem) {
         cartItem.pricing_rules = pr.pricing_rules
         cartItem.price_list_rate = pr.price_list_rate
@@ -378,34 +373,7 @@ export const useCartStore = defineStore('cart', () => {
 
     // Add free items from Buy X Get Y rules
     for (const fi of freeItems) {
-      items.value.push({
-        item_code: fi.item_code,
-        item_name: fi.item_name,
-        rate: fi.rate || 0,
-        qty: fi.qty,
-        amount: fi.amount || 0,
-        uom: fi.uom || fi.stock_uom || '',
-        discount_percentage: 0,
-        discount_amount: 0,
-        image: null,
-        stock_uom: fi.stock_uom || fi.uom || '',
-        has_serial_no: false,
-        has_batch_no: false,
-        serial_no: null,
-        batch_no: null,
-        serial_and_batch_bundle: null,
-        conversion_factor: 1,
-        item_tax_template: null,
-        margin_type: null,
-        margin_rate_or_amount: 0,
-        description: null,
-        project: null,
-        weight_per_unit: null,
-        weight_uom: null,
-        is_free_item: true,
-        pricing_rules: fi.pricing_rules || null,
-        price_list_rate: null,
-      })
+      items.value.push(makeFreeCartItem(fi))
     }
   }
 
@@ -457,6 +425,7 @@ export const useCartStore = defineStore('cart', () => {
     serverRoundingAdjustment,
     totalItems,
     addItem,
+    addConfiguredItem,
     updateQty,
     updateRate,
     updateItemDiscount,

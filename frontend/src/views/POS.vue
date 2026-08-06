@@ -16,6 +16,7 @@ import { useBroadcastDisplay, type DisplayMessage } from '@/composables/useBroad
 import { call } from 'frappe-ui'
 import { useSerialDisplay } from '@/composables/useSerialDisplay'
 import { useDeskMode } from '@/composables/useDeskMode'
+import { toPayloadItem, toDisplayItem, fromInvoiceItem } from '@/utils/cartPayload'
 import AppShell from '@/components/layout/AppShell.vue'
 import ItemGrid from '@/components/items/ItemGrid.vue'
 import Cart from '@/components/cart/Cart.vue'
@@ -143,17 +144,7 @@ onMounted(async () => {
           sendDisplayUpdate({
             type: 'cart_update',
             payload: {
-              items: cartStore.items.map((item) => ({
-                item_name: item.item_name,
-                qty: item.qty,
-                rate: item.rate,
-                amount: item.amount,
-                is_free_item: item.is_free_item || false,
-                pricing_rules: item.pricing_rules || null,
-                price_list_rate: item.price_list_rate ?? null,
-                discount_percentage: item.discount_percentage || 0,
-                discount_amount: item.discount_amount || 0,
-              })),
+              items: cartStore.items.map(toDisplayItem),
               subtotal: cartStore.subtotal,
               netTotal: cartStore.netTotal,
               taxAmount: cartStore.taxAmount,
@@ -247,17 +238,7 @@ watch(
     sendDisplayUpdate({
       type: 'cart_update',
       payload: {
-        items: cartStore.items.map((item) => ({
-          item_name: item.item_name,
-          qty: item.qty,
-          rate: item.rate,
-          amount: item.amount,
-          is_free_item: item.is_free_item || false,
-          pricing_rules: item.pricing_rules || null,
-          price_list_rate: item.price_list_rate ?? null,
-          discount_percentage: item.discount_percentage || 0,
-          discount_amount: item.discount_amount || 0,
-        })),
+        items: cartStore.items.map(toDisplayItem),
         subtotal: cartStore.subtotal,
         netTotal: cartStore.netTotal,
         taxAmount: cartStore.taxAmount,
@@ -346,16 +327,7 @@ async function holdOrder() {
     await draftsStore.saveDraft({
       customer: customerStore.customer.name,
       pos_profile: sessionStore.posProfile,
-      items: cartStore.items.filter((i) => !i.is_free_item).map((item) => ({
-        item_code: item.item_code,
-        qty: item.qty,
-        rate: item.rate,
-        discount_percentage: item.discount_percentage,
-        serial_no: item.serial_no || undefined,
-        batch_no: item.batch_no || undefined,
-        uom: item.uom || undefined,
-        conversion_factor: item.conversion_factor || 1,
-      })),
+      items: cartStore.items.filter((i) => !i.is_free_item).map(toPayloadItem),
     })
     startNewOrder()
   } catch {
@@ -380,31 +352,7 @@ async function resumeDraft(invoiceName: string) {
 
     // Add items to cart
     for (const item of draft.items || []) {
-      cartStore.items.push({
-        item_code: item.item_code,
-        item_name: item.item_name,
-        rate: item.rate,
-        qty: item.qty,
-        amount: item.amount || item.rate * item.qty,
-        uom: item.uom || '',
-        discount_percentage: item.discount_percentage || 0,
-        discount_amount: item.discount_amount || 0,
-        image: null,
-        stock_uom: item.stock_uom || item.uom || '',
-        has_serial_no: !!item.serial_no,
-        has_batch_no: !!item.batch_no,
-        serial_no: item.serial_no || null,
-        batch_no: item.batch_no || null,
-        serial_and_batch_bundle: item.serial_and_batch_bundle || null,
-        conversion_factor: item.conversion_factor || 1,
-        item_tax_template: item.item_tax_template || null,
-        margin_type: item.margin_type || null,
-        margin_rate_or_amount: item.margin_rate_or_amount || 0,
-        description: item.description || null,
-        project: item.project || null,
-        weight_per_unit: item.weight_per_unit || null,
-        weight_uom: item.weight_uom || null,
-      })
+      cartStore.items.push(fromInvoiceItem(item))
     }
 
     // Restore invoice-level options from draft

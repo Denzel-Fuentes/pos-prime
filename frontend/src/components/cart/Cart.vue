@@ -171,7 +171,7 @@ const emit = defineEmits<{
       <TransitionGroup v-else name="cart-item" tag="div">
         <CartItemComp
           v-for="(item, index) in cartStore.items"
-          :key="`${item.item_code}-${item.batch_no || ''}-${index}`"
+          :key="item.uid"
           :item="item"
           :index="index"
           :selected="cartStore.selectedItemIndex === index"

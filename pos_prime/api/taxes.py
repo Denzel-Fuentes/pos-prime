@@ -91,7 +91,15 @@ def calculate_taxes(
             if item_data.get("margin_type"):
                 item_dict["margin_type"] = item_data["margin_type"]
                 item_dict["margin_rate_or_amount"] = item_data.get("margin_rate_or_amount", 0)
-            invoice.append("items", item_dict)
+            row = invoice.append("items", item_dict)
+            # This invoice is never inserted (see docstring) so there's no
+            # real doctype field to carry this in — stash it as a plain
+            # attribute on the in-memory child row and echo it back below.
+            # Lets the frontend match pricing-rule results back to the
+            # right cart line by uid instead of by item_code alone (two
+            # lines can share an item_code — batch/serial items already do
+            # this, restaurant combo components will too).
+            row._line_uid = item_data.get("line_uid")
 
         # Use ERPNext's built-in tax calculation
         invoice.set_missing_values()
@@ -319,6 +327,7 @@ def calculate_taxes(
             elif pr and pr not in ("[]", "[\n]", "null", ""):
                 pricing_rules.append({
                     "item_code": item.item_code,
+                    "line_uid": getattr(item, "_line_uid", None),
                     "pricing_rules": pr,
                     "rate": item.rate,
                     "price_list_rate": item.price_list_rate,

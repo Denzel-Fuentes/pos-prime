@@ -10,6 +10,7 @@ import { usePosSessionStore } from '@/stores/posSession'
 import { useSettingsStore } from '@/stores/settings'
 import { useCurrency } from '@/composables/useCurrency'
 import { useTouchDevice } from '@/composables/useTouchDevice'
+import { toPayloadItem } from '@/utils/cartPayload'
 import { X, Check, Banknote, CreditCard, Wallet, Coins, Award, Eraser, Delete, Loader2, AlertTriangle, BadgeDollarSign } from 'lucide-vue-next'
 
 const { isTouchDevice } = useTouchDevice()
@@ -262,25 +263,7 @@ async function doSubmit() {
     const writeOff = applyWriteOff.value ? possibleWriteOff.value : 0
 
     // Exclude free items — ERPNext adds them automatically via pricing rules
-    const itemsPayload = cartStore.items.filter((i) => !i.is_free_item).map((item) => ({
-      item_code: item.item_code,
-      qty: item.qty,
-      rate: item.rate,
-      discount_percentage: item.discount_percentage,
-      discount_amount: item.discount_amount || undefined,
-      serial_no: item.serial_no || undefined,
-      batch_no: item.batch_no || undefined,
-      serial_and_batch_bundle: item.serial_and_batch_bundle || undefined,
-      uom: item.uom || undefined,
-      conversion_factor: item.conversion_factor || 1,
-      item_tax_template: item.item_tax_template || undefined,
-      margin_type: item.margin_type || undefined,
-      margin_rate_or_amount: item.margin_rate_or_amount || undefined,
-      description: item.description || undefined,
-      project: item.project || undefined,
-      weight_per_unit: item.weight_per_unit || undefined,
-      weight_uom: item.weight_uom || undefined,
-    }))
+    const itemsPayload = cartStore.items.filter((i) => !i.is_free_item).map(toPayloadItem)
 
     const opts = cartStore.invoiceOptions || {}
 

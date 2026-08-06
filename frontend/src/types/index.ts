@@ -76,6 +76,12 @@ export interface Item {
 }
 
 export interface CartItem {
+  // Client-generated, stable for the lifetime of the line — never sent to
+  // ERPNext as-is. Used to identify a line independently of its array index
+  // or item_code (two lines can share an item_code once destination/notes/
+  // combo membership can differ), e.g. to match server pricing-rule results
+  // back to the right line. See frontend/src/utils/uid.ts.
+  uid: string
   item_code: string
   item_name: string
   rate: number

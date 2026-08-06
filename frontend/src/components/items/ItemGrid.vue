@@ -15,7 +15,7 @@ import BatchSerialSelector from './BatchSerialSelector.vue'
 import CameraScanner from '@/components/scanner/CameraScanner.vue'
 import { Package, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
 import { useDeskMode } from '@/composables/useDeskMode'
-import type { Item } from '@/types'
+import type { Item, CartItem } from '@/types'
 
 const { isDeskMode } = useDeskMode()
 
@@ -126,26 +126,24 @@ function onBatchSerialConfirm(batchNo: string | null, serialNo: string | null) {
   const item = batchSerialItem.value
   if (!item) return
 
-  // For serial items, serials may span multiple batches — auto-split
+  const overrides: Partial<CartItem> = {}
+  // For serial items, serials may span multiple batches — auto-split.
+  // This case shouldn't happen with current UI (batch is required first),
+  // but handle it for safety.
   if (serialNo && item.has_batch_no && item.has_serial_no && !batchNo) {
-    // This case shouldn't happen with current UI (batch is required first),
-    // but handle it for safety
-    cartStore.addItem(item, settingsStore.validateStockOnSave)
-    const lastIndex = cartStore.items.length - 1
-    cartStore.updateItemBatchSerial(lastIndex, null, serialNo)
+    overrides.serial_no = serialNo
   } else {
-    // Normal case: add item and set batch/serial
-    cartStore.addItem(item, settingsStore.validateStockOnSave)
-    const lastIndex = cartStore.items.length - 1
-    cartStore.updateItemBatchSerial(lastIndex, batchNo, serialNo)
-    // Set qty from serial count if serials were selected
-    if (serialNo) {
-      const serialCount = serialNo.split('\n').filter(s => s.trim()).length
-      if (serialCount > 1) {
-        cartStore.updateQty(lastIndex, serialCount)
-      }
-    }
+    overrides.batch_no = batchNo
+    overrides.serial_no = serialNo
   }
+  // Set qty from serial count if multiple serials were selected
+  if (serialNo) {
+    const serialCount = serialNo.split('\n').filter((s) => s.trim()).length
+    if (serialCount > 1) overrides.qty = serialCount
+  }
+
+  const { error } = cartStore.addConfiguredItem(item, overrides, settingsStore.validateStockOnSave)
+  if (error) showStockError(error)
   batchSerialItem.value = null
 }
 

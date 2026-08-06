@@ -15,6 +15,7 @@ import { useBarcodeScanner } from '@/composables/useBarcodeScanner'
 import { useCurrency } from '@/composables/useCurrency'
 import { useKioskMode } from '@/composables/useKioskMode'
 import { usePaymentTerminal } from '@/composables/usePaymentTerminal'
+import { toPayloadItem } from '@/utils/cartPayload'
 import KioskWelcome from '@/components/kiosk/KioskWelcome.vue'
 import KioskPhoneEntry from '@/components/kiosk/KioskPhoneEntry.vue'
 import KioskScanning from '@/components/kiosk/KioskScanning.vue'
@@ -364,24 +365,7 @@ async function submitInvoice(paymentMethod: string) {
     pos_profile: sessionStore.posProfile,
     items: cartStore.items
       .filter((item) => !item.is_free_item)
-      .map((item) => ({
-        item_code: item.item_code,
-        qty: item.qty,
-        rate: item.rate,
-        discount_percentage: item.discount_percentage,
-        discount_amount: item.discount_amount || undefined,
-        serial_no: item.serial_no || undefined,
-        batch_no: item.batch_no || undefined,
-        serial_and_batch_bundle: item.serial_and_batch_bundle || undefined,
-        uom: item.uom || undefined,
-        conversion_factor: item.conversion_factor || 1,
-        item_tax_template: item.item_tax_template || undefined,
-        margin_type: item.margin_type || undefined,
-        margin_rate_or_amount: item.margin_rate_or_amount || undefined,
-        description: item.description || undefined,
-        weight_per_unit: item.weight_per_unit || undefined,
-        weight_uom: item.weight_uom || undefined,
-      })),
+      .map(toPayloadItem),
     payments: [{ mode_of_payment: paymentMethod, amount }],
     taxes: settingsStore.posProfile?.taxes_and_charges || undefined,
     additional_discount_percentage: cartStore.pricingRuleDiscount?.type === 'percentage'
