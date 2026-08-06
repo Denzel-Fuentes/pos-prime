@@ -115,6 +115,24 @@ def build_item_dict(item_data, profile):
     if item_data.get("weight_uom"):
         item_dict["weight_uom"] = item_data["weight_uom"]
 
+    # Restaurant module (pos_prime_*) — only once the custom fields have
+    # been migrated. See pos_prime/restaurant/custom_fields.py.
+    if frappe.get_meta("POS Invoice Item").has_field("pos_prime_line_uid"):
+        if item_data.get("line_uid"):
+            item_dict["pos_prime_line_uid"] = item_data["line_uid"]
+        if item_data.get("destination"):
+            item_dict["pos_prime_destination"] = item_data["destination"]
+        if item_data.get("notes"):
+            item_dict["pos_prime_notes"] = item_data["notes"]
+        if item_data.get("combo_uid"):
+            item_dict["pos_prime_combo_uid"] = item_data["combo_uid"]
+        if item_data.get("combo"):
+            item_dict["pos_prime_combo"] = item_data["combo"]
+        if item_data.get("combo_label"):
+            item_dict["pos_prime_combo_label"] = item_data["combo_label"]
+        if item_data.get("modifiers_summary"):
+            item_dict["pos_prime_modifiers"] = item_data["modifiers_summary"]
+
     return item_dict
 
 
@@ -472,7 +490,7 @@ def format_invoice_response(invoice):
 
 def format_invoice_item(item):
     """Format a single POS Invoice Item for API response."""
-    return {
+    item_dict = {
         "item_code": item.item_code,
         "item_name": item.item_name,
         "description": item.get("description"),
@@ -511,3 +529,16 @@ def format_invoice_item(item):
         "total_weight": item.get("total_weight"),
         "weight_uom": item.get("weight_uom"),
     }
+
+    # Restaurant module (pos_prime_*) — echoed back so drafts round-trip
+    # and the frontend can rebuild combo/destination/notes state.
+    if frappe.get_meta("POS Invoice Item").has_field("pos_prime_line_uid"):
+        item_dict["line_uid"] = item.get("pos_prime_line_uid")
+        item_dict["destination"] = item.get("pos_prime_destination")
+        item_dict["notes"] = item.get("pos_prime_notes")
+        item_dict["combo_uid"] = item.get("pos_prime_combo_uid")
+        item_dict["combo"] = item.get("pos_prime_combo")
+        item_dict["combo_label"] = item.get("pos_prime_combo_label")
+        item_dict["modifiers_summary"] = item.get("pos_prime_modifiers")
+
+    return item_dict

@@ -18,8 +18,7 @@ from pos_prime.api._utils import (
 )
 
 
-@frappe.whitelist()
-def create_pos_invoice(
+def _create_pos_invoice_doc(
     customer,
     pos_profile,
     items,
@@ -81,9 +80,17 @@ def create_pos_invoice(
     # Sales team
     sales_team=None,
 ):
-    """Create and submit a POS Invoice with full feature support.
+    """Build, insert and submit a POS Invoice. Returns the doc (not a dict) —
+    internal builder shared by create_pos_invoice and
+    pos_prime.api.restaurant.create_restaurant_sale. Do not call directly
+    from the frontend; it is not whitelisted.
 
     Supports ALL POS Invoice fields for complete parity with ERPNext's built-in POS.
+
+    Any item dict with a truthy "lock_rate" gets its rate held fixed
+    through set_missing_values() and pricing-rule evaluation — used by the
+    restaurant module so a combo's distributed price can't be overwritten
+    by ERPNext re-deriving it from the item's price list.
     """
     # Permission check
     validate_pos_access(pos_profile)
@@ -131,8 +138,11 @@ def create_pos_invoice(
         invoice.company_address = profile.company_address
 
     # Items
-    for item_data in items:
+    locked_rates = {}
+    for idx, item_data in enumerate(items):
         invoice.append("items", build_item_dict(item_data, profile))
+        if item_data.get("lock_rate"):
+            locked_rates[idx] = safe_float(item_data.get("rate", 0))
 
     # Payments
     total_paid = 0
@@ -279,6 +289,32 @@ def create_pos_invoice(
         if store_credit > available:
             store_credit = available
 
+    # Lock combo-component rates so ERPNext can't re-derive them from the
+    # item's price list. AccountsController.validate() calls
+    # set_missing_values() (possibly more than once — e.g. again on
+    # submit), so wrap the bound method rather than fixing rates once:
+    # Python resolves the instance attribute before the class method, so
+    # every internal call is caught. price_list_rate must be locked too,
+    # or calculate_item_values() resets rate from it when rate == 0
+    # (a legitimately free combo component).
+    if locked_rates:
+        _orig_set_missing_values = invoice.set_missing_values
+
+        def _set_missing_values_and_lock(*args, **kwargs):
+            result = _orig_set_missing_values(*args, **kwargs)
+            for idx, rate in locked_rates.items():
+                row = invoice.items[idx]
+                row.rate = rate
+                row.price_list_rate = rate
+                row.discount_percentage = 0
+                row.discount_amount = 0
+                row.margin_type = ""
+                row.margin_rate_or_amount = 0
+                row.pricing_rules = None
+            return result
+
+        invoice.set_missing_values = _set_missing_values_and_lock
+
     invoice.flags.ignore_permissions = True
     invoice.set_missing_values()
 
@@ -379,4 +415,78 @@ def create_pos_invoice(
                     update_modified=False,
                 )
 
-    return format_invoice_response(invoice)
+    return invoice
+
+
+@frappe.whitelist()
+def create_pos_invoice(
+    customer,
+    pos_profile,
+    items,
+    payments,
+    # Tax & discount
+    taxes=None,
+    additional_discount_percentage=0,
+    discount_amount=0,
+    apply_discount_on="Grand Total",
+    coupon_code=None,
+    # Loyalty
+    loyalty_points=0,
+    loyalty_program=None,
+    redeem_loyalty_points=False,
+    loyalty_redemption_account=None,
+    loyalty_redemption_cost_center=None,
+    # Return
+    is_return=False,
+    return_against=None,
+    # Address & contact
+    customer_address=None,
+    shipping_address_name=None,
+    contact_person=None,
+    # Currency
+    conversion_rate=None,
+    price_list_currency=None,
+    plc_conversion_rate=None,
+    # Commission
+    sales_partner=None,
+    commission_rate=None,
+    # Document details
+    project=None,
+    cost_center=None,
+    remarks=None,
+    po_no=None,
+    po_date=None,
+    set_posting_time=False,
+    posting_date=None,
+    posting_time=None,
+    naming_series=None,
+    # Shipping & terms
+    shipping_rule=None,
+    tc_name=None,
+    terms=None,
+    # Printing
+    letter_head=None,
+    select_print_heading=None,
+    group_same_items=False,
+    language=None,
+    # Payment terms & advances
+    payment_terms_template=None,
+    allocate_advances_automatically=False,
+    # Write-off
+    write_off_amount=0,
+    write_off_outstanding_amount_automatically=False,
+    debit_to=None,
+    # Store credit
+    store_credit_amount=0,
+    # Sales team
+    sales_team=None,
+):
+    """Create and submit a POS Invoice with full feature support.
+
+    Thin public wrapper around _create_pos_invoice_doc — kept as a
+    separate function (rather than folding the whole body in here) so
+    pos_prime.api.restaurant.create_restaurant_sale can call the builder
+    directly and get the doc back instead of the formatted dict.
+    """
+    args = dict(locals())
+    return format_invoice_response(_create_pos_invoice_doc(**args))
