@@ -1,35 +1,62 @@
 # Copyright (c) 2026, Ravindu Gajanayaka
 # Licensed under GPLv3. See license.txt
 
-"""Kitchen ticket transport + orchestration.
+"""Ticket transport + orchestration — kitchen comanda and till receipt.
 
-pos_prime/restaurant/escpos.py builds ticket bytes; this module decides
-which Restaurant Printer(s) a Restaurant Order should go to, lays out the
-actual ticket (grouped by destination, then combo instance, then loose
-items — no prices, the kitchen doesn't need them), sends it over a plain
-TCP socket (ESC/POS network printers listen on port 9100 and never reply,
-so this only ever writes), and durably records the outcome on the order.
+pos_prime/restaurant/escpos.py builds the kitchen ticket bytes (grouped by
+destination, then combo instance, then loose items — no prices, the
+kitchen doesn't need them) and pos_prime/restaurant/receipt_ticket.py
+builds the customer receipt bytes from the POS Invoice. This module picks
+which Restaurant Printer(s) a job goes to and delivers the bytes one of
+two ways (see _deliver):
+
+  - TCP Directo: a plain socket straight from wherever Frappe runs to the
+    printer's host:port (ESC/POS network printers listen on port 9100 and
+    never reply, so this only ever writes). Only works when Frappe has
+    direct network access to the printer — i.e. an on-prem bench on the
+    same LAN.
+  - Puente Android: for a cloud-hosted Frappe that can't reach a printer
+    sitting behind the store's router/NAT. The ticket (ESC/POS bytes,
+    base64) is published via frappe.publish_realtime to the Frappe User
+    configured as the printer's bridge_user — Frappe's own realtime layer
+    (Socket.IO, already served as wss://<site> over 443) already scopes
+    delivery to that user's live sessions, so no bespoke pairing/token
+    system is needed here. An Android app (built separately, outside this
+    repo) logs in as that User, listens for the "pos_prime_print_job"
+    event, and relays the decoded bytes over a local TCP connection to
+    the host:port in the payload. This is fire-and-forget: there is no
+    delivery ack from the phone, so "Printed" for a bridge job only means
+    "handed off to realtime," not "confirmed printed on paper." If the
+    bridge device is offline the job is lost, same as today's Failed
+    kitchen tickets — the fix is the same manual reprint path.
 
 A printer failure must never revert or block a sale — see the
-enqueue_after_commit=True call site in pos_prime/api/restaurant.py and the
+enqueue_after_commit=True call sites in pos_prime/api/restaurant.py and the
 docstring on print_comanda() below for how that invariant is kept even when
 this is invoked inline (dev benches with no RQ worker).
 """
 
+import base64
 import socket
 
 import frappe
 
 from pos_prime.restaurant.escpos import EscposBuilder
+from pos_prime.restaurant.ticket_options import shows
+from pos_prime.restaurant.ticket_template import comanda_context, render
 
 
-def _get_printers_for_order(order):
+def _get_printers(pos_profile, role):
 	names = frappe.get_all(
 		"Restaurant Printer",
-		filters={"disabled": 0, "pos_profile": ["in", ["", order.pos_profile]]},
+		filters={"disabled": 0, "pos_profile": ["in", ["", pos_profile]], "printer_role": role},
 		pluck="name",
 	)
 	return [frappe.get_doc("Restaurant Printer", name) for name in names]
+
+
+def _get_printers_for_order(order):
+	return _get_printers(order.pos_profile, "Comanda (Cocina)")
 
 
 def _destinations_for_printer(printer, order):
@@ -51,29 +78,54 @@ def _fmt_qty(qty):
 	return str(int(qty)) if float(qty).is_integer() else f"{qty:g}"
 
 
-def _write_loose_item(b, item):
+def _write_loose_item(b, item, show_modifiers=True):
 	b.bold(f"{_fmt_qty(item.qty)}x {item.item_name}")
 	if item.notes:
 		b.text(f"  * {item.notes}")
-	if item.modifiers_summary:
+	if show_modifiers and item.modifiers_summary:
 		b.text(f"  + {item.modifiers_summary}")
 
 
-def _write_combo_component(b, item):
+def _write_combo_component(b, item, show_modifiers=True):
 	label = item.combo_slot_label or item.item_name
 	b.text(f"  - {label}: {item.item_name}")
 	if item.notes:
 		b.text(f"    * {item.notes}")
-	if item.modifiers_summary:
+	if show_modifiers and item.modifiers_summary:
 		b.text(f"    + {item.modifiers_summary}")
 
 
+def build_from_template(printer, context):
+	"""Wrap a Print Format's rendered output in the printer's own frame —
+	init/codepage prologue, feed/cut/drawer epilogue. See
+	pos_prime/restaurant/ticket_template.py for who owns what."""
+	b = EscposBuilder(printer.codepage, printer.escpos_codepage_id, printer.chars_per_line or 32)
+	b.raw(render(printer.print_format, context))
+	b.feed(3)
+	if printer.cut_paper:
+		b.cut()
+	if printer.cash_drawer_pulse:
+		b.pulse_drawer()
+	return b.build()
+
+
 def _build_ticket_bytes(order, printer, destinations, settings):
+	if printer.print_format:
+		return build_from_template(
+			printer, comanda_context(order, printer, destinations, settings)
+		)
+
 	b = EscposBuilder(printer.codepage, printer.escpos_codepage_id, printer.chars_per_line or 32)
 
+	show_modifiers = shows(settings, "comanda_show_modifiers")
+
 	b.align("center")
-	b.bold(order.pos_invoice or order.name)
-	b.text(frappe.utils.now_datetime().strftime("%d/%m/%Y %H:%M"))
+	if shows(settings, "comanda_show_order_no"):
+		b.bold(order.pos_invoice or order.name)
+	if shows(settings, "comanda_show_time"):
+		b.text(frappe.utils.now_datetime().strftime("%d/%m/%Y %H:%M"))
+	if shows(settings, "comanda_show_customer") and order.customer:
+		b.text(frappe.get_cached_value("Customer", order.customer, "customer_name") or order.customer)
 	b.align("left")
 
 	combos_by_uid = {c.combo_uid: c for c in order.combos}
@@ -106,14 +158,14 @@ def _build_ticket_bytes(order, printer, destinations, settings):
 			)
 			b.bold(label)
 			for component in combo_items:
-				_write_combo_component(b, component)
+				_write_combo_component(b, component, show_modifiers)
 			if combo_row and combo_row.notes:
 				b.text(f"  * {combo_row.notes}")
 			b.feed(1)
 
 		for item in dest_items:
 			if not item.combo_uid:
-				_write_loose_item(b, item)
+				_write_loose_item(b, item, show_modifiers)
 
 		b.feed(1)
 
@@ -131,6 +183,37 @@ def _send_bytes(printer, data):
 	) as sock:
 		for _ in range(max(1, printer.copies or 1)):
 			sock.sendall(data)
+
+
+def _send_via_bridge(printer, data, job_type, reference):
+	if not printer.bridge_user:
+		frappe.throw(
+			f'Restaurant Printer "{printer.printer_name}" is set to Puente Android but has no Bridge User configured.'
+		)
+	frappe.publish_realtime(
+		event="pos_prime_print_job",
+		message={
+			"printer": printer.name,
+			"host": printer.host,
+			"port": printer.port or 9100,
+			"copies": max(1, printer.copies or 1),
+			"data_base64": base64.b64encode(data).decode(),
+			"job_type": job_type,
+			"reference": reference,
+		},
+		user=printer.bridge_user,
+		after_commit=True,
+	)
+
+
+def _deliver(printer, data, job_type, reference):
+	"""Dispatch one ticket's bytes to a Restaurant Printer per its
+	delivery_mode. See the module docstring for what each mode does and
+	the tradeoffs of Puente Android (fire-and-forget, no delivery ack)."""
+	if printer.delivery_mode == "Puente Android":
+		_send_via_bridge(printer, data, job_type, reference)
+	else:
+		_send_bytes(printer, data)
 
 
 def print_comanda(restaurant_order):
@@ -170,7 +253,7 @@ def print_comanda(restaurant_order):
 			continue
 		try:
 			data = _build_ticket_bytes(order, printer, destinations, settings)
-			_send_bytes(printer, data)
+			_deliver(printer, data, job_type="comanda", reference=order.name)
 			sent_to_any = True
 		except Exception as e:
 			errors.append(f"{printer.printer_name}: {e}")
@@ -197,6 +280,53 @@ def print_comanda(restaurant_order):
 		raise frappe.ValidationError("; ".join(errors))
 
 
+def print_receipt(pos_invoice):
+	"""Print the till receipt for one POS Invoice to every matching
+	Restaurant Printer (printer_role="Recibo (Caja)"), and durably record
+	the outcome via pos_prime_receipt_status / _printed_at / _error.
+
+	Same calling conventions and same "never block or revert a sale"
+	guarantee as print_comanda() above — see its docstring.
+	"""
+	from pos_prime.restaurant.receipt_ticket import build_receipt_bytes
+
+	invoice = frappe.get_doc("POS Invoice", pos_invoice)
+	settings = frappe.get_cached_doc("Restaurant Settings")
+	printers = _get_printers(invoice.pos_profile, "Recibo (Caja)")
+
+	if not printers:
+		invoice.db_set("pos_prime_receipt_status", "Not Required", update_modified=False)
+		return
+
+	errors = []
+	sent_to_any = False
+	for printer in printers:
+		try:
+			data = build_receipt_bytes(invoice, printer, settings)
+			_deliver(printer, data, job_type="receipt", reference=invoice.name)
+			sent_to_any = True
+		except Exception as e:
+			errors.append(f"{printer.printer_name}: {e}")
+			frappe.log_error(
+				title=f"Receipt print failed: {printer.printer_name}",
+				message=frappe.get_traceback(),
+			)
+
+	if not sent_to_any and not errors:
+		invoice.db_set("pos_prime_receipt_status", "Not Required", update_modified=False)
+		return
+
+	if errors:
+		invoice.db_set("pos_prime_receipt_status", "Failed", update_modified=False)
+		invoice.db_set("pos_prime_receipt_error", "\n".join(errors)[:4000], update_modified=False)
+	else:
+		invoice.db_set("pos_prime_receipt_status", "Printed", update_modified=False)
+		invoice.db_set("pos_prime_receipt_printed_at", frappe.utils.now_datetime(), update_modified=False)
+
+	if errors and not settings.fail_silently:
+		raise frappe.ValidationError("; ".join(errors))
+
+
 def send_test_ticket(printer_name):
 	"""Synchronous, user-initiated printer test — errors are meant to
 	surface immediately to whoever clicked "Test Printer", so unlike
@@ -217,4 +347,4 @@ def send_test_ticket(printer_name):
 	if printer.cut_paper:
 		b.cut()
 
-	_send_bytes(printer, b.build())
+	_deliver(printer, b.build(), job_type="test", reference=printer.name)

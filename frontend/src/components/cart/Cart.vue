@@ -94,21 +94,31 @@ function onToggleItemDestination(index: number) {
   cartStore.updateItemDestination(index, item.destination === 'Para llevar' ? 'Mesa' : 'Para llevar')
 }
 
-// Note/modifier dialogs edit one line at a time, addressed by index — same
-// pattern as the batch/serial selector in ItemGrid.vue (a ref that doubles
-// as both "is a dialog open" and "which line is it for").
-const noteDialogIndex = ref<number | null>(null)
-const noteDialogItem = computed(() =>
-  noteDialogIndex.value !== null ? cartStore.items[noteDialogIndex.value] ?? null : null
-)
-
-function onEditNotes(index: number) {
-  noteDialogIndex.value = index
+function onToggleComboDestination(comboUid: string) {
+  const item = cartStore.items.find((i) => i.combo_uid === comboUid)
+  if (!item) return
+  cartStore.updateComboInstanceDestination(comboUid, item.destination === 'Para llevar' ? 'Mesa' : 'Para llevar')
 }
 
-function onSaveNotes(notes: string) {
-  if (noteDialogIndex.value !== null) cartStore.updateItemNotes(noteDialogIndex.value, notes)
-  noteDialogIndex.value = null
+function onUpdateComboQty(comboUid: string, qty: number) {
+  cartStore.updateComboInstanceQty(comboUid, qty)
+}
+
+// Instance-wide combo note — a parallel dialog target to modifierPickerIndex
+// below, addressed by combo_uid instead of index since it applies to every
+// line in the instance (see cartStore.updateComboNotes).
+const comboNotesUid = ref<string | null>(null)
+const comboNotesItem = computed(() =>
+  comboNotesUid.value !== null ? cartStore.items.find((i) => i.combo_uid === comboNotesUid.value) ?? null : null
+)
+
+function onEditComboNotes(comboUid: string) {
+  comboNotesUid.value = comboUid
+}
+
+function onSaveComboNotes(notes: string) {
+  if (comboNotesUid.value !== null) cartStore.updateComboNotes(comboNotesUid.value, notes)
+  comboNotesUid.value = null
 }
 
 const modifierPickerIndex = ref<number | null>(null)
@@ -120,8 +130,13 @@ function onEditModifiers(index: number) {
   modifierPickerIndex.value = index
 }
 
-function onSaveModifiers(modifiers: { modifier: string; label: string }[]) {
-  if (modifierPickerIndex.value !== null) cartStore.updateItemModifiers(modifierPickerIndex.value, modifiers)
+// Notes and modifiers are unified behind one dialog — see ModifierPicker's
+// manual text box alongside its predefined chips.
+function onSaveModifiers(payload: { modifiers: { modifier: string; label: string }[]; notes: string }) {
+  if (modifierPickerIndex.value !== null) {
+    cartStore.updateItemModifiers(modifierPickerIndex.value, payload.modifiers)
+    cartStore.updateItemNotes(modifierPickerIndex.value, payload.notes)
+  }
   modifierPickerIndex.value = null
 }
 
@@ -236,8 +251,16 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
 <template>
   <div class="flex flex-col h-full bg-white dark:bg-gray-900">
     <!-- Customer section (ERPNext-style: separate area at top) -->
-    <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
-      <CustomerSelector @open-detail="showCustomerDetail = true" />
+    <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+      <div class="flex-1 min-w-0">
+        <CustomerSelector @open-detail="showCustomerDetail = true" />
+      </div>
+      <!-- Mobile-only actions (held orders, mobile menu) injected by the
+           parent — kept out of AppShell's own header to save vertical
+           space on narrow screens. -->
+      <div class="lg:hidden flex items-center gap-1 shrink-0">
+        <slot name="header-actions" />
+      </div>
     </div>
 
     <!-- Customer detail panel -->
@@ -257,11 +280,14 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
           <button
             v-for="dest in restaurantStore.config?.destinations || ['Mesa', 'Para llevar']"
             :key="dest"
-            @click="restaurantStore.setDefaultDestination(dest as RestaurantDestination)"
-            class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide transition-colors"
-            :class="restaurantStore.defaultDestination === dest
-              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-              : 'text-gray-500 dark:text-gray-400'"
+            @click="restaurantStore.setDefaultDestination(dest as RestaurantDestination); cartStore.setAllItemsDestination(dest as RestaurantDestination)"
+            class="rounded-md font-bold uppercase tracking-wide transition-colors"
+            :class="[
+              isTouchDevice ? 'px-3.5 py-2 text-xs' : 'px-2.5 py-1 text-[10px]',
+              restaurantStore.defaultDestination === dest
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400'
+            ]"
           >
             {{ dest === 'Mesa' ? restaurantStore.labelDineIn : restaurantStore.labelTakeaway }}
           </button>
@@ -269,9 +295,12 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
       </div>
       <div v-if="cartStore.items.length > 0" class="flex items-center text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
         <span class="flex-1">{{ __('Item') }}</span>
-        <span class="w-[88px] text-center">{{ __('Qty') }}</span>
+        <!-- Widths must match CartItem.vue's qtyColWidth/deleteColWidth
+             (and the same 44px-on-touch rule) or the Amount column
+             desyncs from the header on touch devices. -->
+        <span class="text-center" :style="{ width: isTouchDevice ? '132px' : '88px' }">{{ __('Qty') }}</span>
         <span class="w-[72px] text-right">{{ __('Amount') }}</span>
-        <span class="w-7" />
+        <span :style="{ width: isTouchDevice ? '44px' : '28px' }" />
       </div>
     </div>
 
@@ -292,10 +321,15 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
             :label="group.label"
             :price="group.price"
             :destination="group.destination"
+            :notes="group.lines[0]?.item.combo_notes"
             :lines="group.lines"
             :selected-index="cartStore.selectedItemIndex"
             @select="onItemSelect"
             @remove-instance="cartStore.removeComboInstance"
+            @update-qty="onUpdateComboQty"
+            @toggle-destination="onToggleComboDestination"
+            @edit-modifiers="onEditModifiers"
+            @edit-combo-notes="onEditComboNotes"
           />
           <CartItemComp
             v-else
@@ -306,7 +340,6 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
             @update-qty="onUpdateQty"
             @remove="onRemove"
             @toggle-destination="onToggleItemDestination"
-            @edit-notes="onEditNotes"
             @edit-modifiers="onEditModifiers"
           />
         </template>
@@ -382,8 +415,8 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
       <!-- Expandable extras -->
       <div v-if="cartStore.items.length > 0" class="px-3 pt-1.5 space-y-1">
         <InvoiceDiscount />
-        <CouponCodeInput />
-        <InvoiceOptions />
+        <CouponCodeInput v-if="!(restaurantStore.enabled && restaurantStore.disableCouponCode)" />
+        <InvoiceOptions v-if="!(restaurantStore.enabled && restaurantStore.disableMoreOptions)" />
       </div>
 
       <!-- Summary -->
@@ -396,10 +429,12 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
         <button
           @click="emit('holdOrder')"
           :disabled="cartStore.items.length === 0"
+          aria-label="Hold Order"
           class="py-2.5 px-4 rounded-lg text-sm font-bold transition-all duration-150 flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
           title="Hold Order"
         >
           <Pause :size="16" />
+          <span class="hidden lg:inline">{{ __('Hold') }}</span>
         </button>
         <button
           @click="openPayment"
@@ -415,21 +450,22 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
       </div>
     </div>
 
-    <!-- Kitchen note dialog -->
+    <!-- Combo instance note dialog -->
     <NoteDialog
-      v-if="noteDialogItem"
-      :item-name="noteDialogItem.item_name"
-      :model-value="noteDialogItem.notes ?? null"
-      @confirm="onSaveNotes"
-      @close="noteDialogIndex = null"
+      v-if="comboNotesItem"
+      :item-name="comboNotesItem.combo_label?.split(' · ')[0] || comboNotesItem.combo || comboNotesItem.item_name"
+      :model-value="comboNotesItem.combo_notes ?? null"
+      @confirm="onSaveComboNotes"
+      @close="comboNotesUid = null"
     />
 
-    <!-- Modifier picker -->
+    <!-- Modifier picker (also carries the manual note box — notes and
+         modifiers are unified into this one dialog) -->
     <ModifierPicker
       v-if="modifierPickerItem"
       :item-code="modifierPickerItem.item_code"
       :item-name="modifierPickerItem.item_name"
-      :model-value="modifierPickerItem.modifiers || []"
+      :model-value="{ modifiers: modifierPickerItem.modifiers || [], notes: modifierPickerItem.notes ?? null }"
       @confirm="onSaveModifiers"
       @close="modifierPickerIndex = null"
     />

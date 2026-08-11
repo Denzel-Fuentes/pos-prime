@@ -8,14 +8,18 @@
   "printer_name",
   "disabled",
   "pos_profile",
+  "printer_role",
   "print_destinations",
   "section_break_conn",
+  "delivery_mode",
+  "bridge_user",
   "host",
   "port",
   "column_break_conn",
   "timeout_seconds",
   "copies",
   "section_break_format",
+  "print_format",
   "codepage",
   "escpos_codepage_id",
   "column_break_format",
@@ -46,7 +50,17 @@
    "options": "POS Profile"
   },
   {
+   "default": "Comanda (Cocina)",
+   "fieldname": "printer_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Role",
+   "options": "Comanda (Cocina)\nRecibo (Caja)"
+  },
+  {
    "default": "All",
+   "depends_on": "eval:doc.printer_role==\"Comanda (Cocina)\"",
+   "description": "Only applies to kitchen tickets — a till receipt always prints once per sale regardless of destination.",
    "fieldname": "print_destinations",
    "fieldtype": "Select",
    "label": "Print Destinations",
@@ -58,7 +72,24 @@
    "label": "Connection"
   },
   {
-   "description": "IP address or hostname of the network printer.",
+   "default": "TCP Directo",
+   "description": "TCP Directo: Frappe opens a raw socket to Host:Port itself (needs direct network access to the printer). Puente Android: the ticket is published in real time to an Android bridge device (see Bridge User) that relays it over a local TCP connection to Host:Port — needed when Frappe runs off-site from the printer's LAN.",
+   "fieldname": "delivery_mode",
+   "fieldtype": "Select",
+   "label": "Delivery Mode",
+   "options": "TCP Directo\nPuente Android"
+  },
+  {
+   "depends_on": "eval:doc.delivery_mode==\"Puente Android\"",
+   "description": "The Frappe User the paired Android bridge device logs in as. Print jobs for this printer are published via frappe.publish_realtime to that user's active sessions — create one dedicated User per bridge device/phone.",
+   "fieldname": "bridge_user",
+   "fieldtype": "Link",
+   "label": "Bridge User",
+   "mandatory_depends_on": "eval:doc.delivery_mode==\"Puente Android\"",
+   "options": "User"
+  },
+  {
+   "description": "IP address or hostname of the network printer, on the local network the printer physically lives on (in Puente Android mode, this is the address the bridge device connects to — not Frappe).",
    "fieldname": "host",
    "fieldtype": "Data",
    "label": "Host",
@@ -90,6 +121,13 @@
    "fieldname": "section_break_format",
    "fieldtype": "Section Break",
    "label": "Ticket Format"
+  },
+  {
+   "description": "Optional. A Print Format with Raw Printing enabled, whose Raw Commands lay the ticket out (Jinja + ESC/POS). Leave blank to use the built-in layout driven by the checks in Restaurant Settings. Must be for Restaurant Order on a kitchen printer and for POS Invoice on a till printer. The codepage, cut, drawer and copies below still apply either way.",
+   "fieldname": "print_format",
+   "fieldtype": "Link",
+   "label": "Print Format (Raw)",
+   "options": "Print Format"
   },
   {
    "default": "CP850",
@@ -130,7 +168,7 @@
  "icon": "restaurant",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-06 00:00:00.000000",
+ "modified": "2026-08-10 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "POS Prime",
  "name": "Restaurant Printer",

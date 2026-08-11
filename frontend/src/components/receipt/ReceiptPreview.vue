@@ -7,6 +7,7 @@ import { call } from 'frappe-ui'
 import { usePaymentStore } from '@/stores/payment'
 import { usePosSessionStore } from '@/stores/posSession'
 import { useSettingsStore } from '@/stores/settings'
+import { useRestaurantStore } from '@/stores/restaurant'
 import { useCurrency } from '@/composables/useCurrency'
 import { Printer, Plus, X, Check, Share2, Loader2, Mail, ChefHat } from 'lucide-vue-next'
 import EmailReceiptDialog from './EmailReceiptDialog.vue'
@@ -19,12 +20,22 @@ const emit = defineEmits<{
 const paymentStore = usePaymentStore()
 const sessionStore = usePosSessionStore()
 const settingsStore = useSettingsStore()
+const restaurantStore = useRestaurantStore()
 const { formatCurrency } = useCurrency()
 
 const invoice = computed(() => paymentStore.lastInvoice)
 
+// A configured Recibo (Caja) printer means the sale already triggered
+// print_receipt server-side (same after-commit hook as the kitchen
+// ticket) — the browser's own print dialog would just be a redundant
+// second copy, so it's skipped entirely in that case.
+const usesBridgeReceiptPrinter = computed(
+  () => restaurantStore.enabled && restaurantStore.hasReceiptPrinter
+)
+
 // Auto-print receipt if POS Profile setting is enabled
 onMounted(() => {
+  if (usesBridgeReceiptPrinter.value) return
   if (settingsStore.printReceiptOnOrderComplete && invoice.value) {
     nextTick(() => {
       printReceipt()
@@ -122,6 +133,44 @@ function newOrder() {
 // already resets that by the time this dialog is showing) so "reprint" stays
 // available for the whole time the receipt is on screen.
 const reprinting = ref(false)
+
+const printingReceipt = ref(false)
+
+async function reprintReceipt() {
+  if (!invoice.value?.name || printingReceipt.value) return
+  printingReceipt.value = true
+  const frappeGlobal = (window as any).frappe
+  try {
+    const result = await call('pos_prime.api.restaurant.reprint_receipt', {
+      pos_invoice: invoice.value.name,
+    })
+    if (result?.pos_prime_receipt_status === 'Printed') {
+      frappeGlobal?.show_alert?.({ message: __('Receipt sent to printer.'), indicator: 'green' }, 3)
+    } else {
+      frappeGlobal?.show_alert?.(
+        {
+          message: __('Receipt print failed: {0}', [
+            result?.pos_prime_receipt_error || result?.pos_prime_receipt_status || '',
+          ]),
+          indicator: 'red',
+        },
+        4
+      )
+    }
+  } catch (e: any) {
+    frappeGlobal?.show_alert?.({ message: e?.message || __('Failed to print receipt'), indicator: 'red' }, 4)
+  } finally {
+    printingReceipt.value = false
+  }
+}
+
+function onPrintClick() {
+  if (usesBridgeReceiptPrinter.value) {
+    reprintReceipt()
+  } else {
+    printReceipt()
+  }
+}
 
 async function reprintComanda() {
   if (!invoice.value?.restaurant_order || reprinting.value) return
@@ -360,10 +409,12 @@ async function reprintComanda() {
           </button>
           <div class="flex gap-2">
             <button
-              @click="printReceipt"
-              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2"
+              @click="onPrintClick"
+              :disabled="printingReceipt"
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <Printer :size="16" />
+              <Loader2 v-if="printingReceipt" :size="16" class="animate-spin" />
+              <Printer v-else :size="16" />
               {{ __('Print') }}
             </button>
             <button

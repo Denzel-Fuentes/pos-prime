@@ -7,26 +7,37 @@ import { useRestaurantStore } from '@/stores/restaurant'
 import { X, Check, ListPlus } from 'lucide-vue-next'
 import type { RestaurantModifierGroup, RestaurantModifier } from '@/types'
 
-const props = defineProps<{
-  itemCode: string
-  itemName: string
-  modelValue: { modifier: string; label: string }[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    itemCode: string
+    itemName: string
+    modelValue: { modifiers: { modifier: string; label: string }[]; notes: string | null }
+    // Some combo slots restrict which items may take a predefined modifier
+    // group (see slot.allow_modifiers) — the manual note box below stays
+    // available regardless, only the chip groups are hidden.
+    allowGroups?: boolean
+  }>(),
+  { allowGroups: true }
+)
 
 const emit = defineEmits<{
   close: []
-  confirm: [modifiers: { modifier: string; label: string }[]]
+  confirm: [payload: { modifiers: { modifier: string; label: string }[]; notes: string }]
 }>()
 
 const restaurantStore = useRestaurantStore()
 // Config is fetched once at session start and doesn't change while this
 // dialog is open — a plain (non-reactive) snapshot is enough, no need for
 // ComboBuilderDialog's onMounted fetch-and-loading dance.
-const groups = restaurantStore.modifierGroupsForItem(props.itemCode)
+const groups = props.allowGroups ? restaurantStore.modifierGroupsForItem(props.itemCode) : []
 
 const selected = ref<Record<string, { modifier: string; label: string }>>(
-  Object.fromEntries(props.modelValue.map((m) => [m.modifier, m]))
+  Object.fromEntries(props.modelValue.modifiers.map((m) => [m.modifier, m]))
 )
+// Notes and modifiers are unified into this one dialog — the manual text
+// box lets staff write a modifier/note that isn't one of the predefined
+// chips ("sin cebolla", "extra queso") alongside picking from groups.
+const notes = ref(props.modelValue.notes || '')
 
 function isSelected(modifier: string) {
   return modifier in selected.value
@@ -46,7 +57,7 @@ function toggle(group: RestaurantModifierGroup, modifier: RestaurantModifier) {
 }
 
 function confirm() {
-  emit('confirm', Object.values(selected.value))
+  emit('confirm', { modifiers: Object.values(selected.value), notes: notes.value.trim() })
 }
 </script>
 
@@ -76,28 +87,42 @@ function confirm() {
       </div>
 
       <div class="p-4 space-y-4">
-        <div v-if="groups.length === 0" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
-          {{ __('No modifiers available for this item') }}
+        <div v-if="allowGroups && groups.length === 0" class="text-center py-2 text-sm text-gray-400 dark:text-gray-500">
+          {{ __('No preset modifiers available for this item') }}
         </div>
-        <div v-for="group in groups" :key="group.name">
-          <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
-            {{ group.group_name }}
-          </h4>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="modifier in group.modifiers"
-              :key="modifier.modifier"
-              @click="toggle(group, modifier)"
-              class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-              :class="
-                isSelected(modifier.modifier)
-                  ? 'border-teal-400 dark:border-teal-600 bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300'
-                  : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-              "
-            >
-              {{ modifier.print_label || modifier.modifier_name }}
-            </button>
+        <template v-if="allowGroups">
+          <div v-for="group in groups" :key="group.name">
+            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+              {{ group.group_name }}
+            </h4>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="modifier in group.modifiers"
+                :key="modifier.modifier"
+                @click="toggle(group, modifier)"
+                class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+                :class="
+                  isSelected(modifier.modifier)
+                    ? 'border-teal-400 dark:border-teal-600 bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                "
+              >
+                {{ modifier.print_label || modifier.modifier_name }}
+              </button>
+            </div>
           </div>
+        </template>
+
+        <div>
+          <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+            {{ __('Manual note') }}
+          </h4>
+          <textarea
+            v-model="notes"
+            rows="2"
+            :placeholder="__('e.g. sin cebolla, bien cocido...')"
+            class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 resize-none"
+          />
         </div>
 
         <button

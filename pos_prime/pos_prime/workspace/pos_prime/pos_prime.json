@@ -1,8 +1,8 @@
 {
   "charts": [],
-  "content": "[{\"id\":\"nc_total_pos_sales\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total POS Sales\",\"col\":3}},{\"id\":\"nc_pos_invoices_count\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"POS Invoices Count\",\"col\":3}},{\"id\":\"nc_total_pos_returns\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total POS Returns\",\"col\":3}},{\"id\":\"nc_open_pos_sessions\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open POS Sessions\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"header_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\",\"col\":12}},{\"id\":\"sc_open_pos_prime\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Open POS Prime\",\"col\":4}},{\"id\":\"sc_pos_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Invoice\",\"col\":4}},{\"id\":\"sc_pos_opening\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Opening Entry\",\"col\":4}},{\"id\":\"sc_pos_closing\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Closing Entry\",\"col\":4}},{\"id\":\"sc_pos_profile\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Profile\",\"col\":4}},{\"id\":\"sc_customer\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":4}},{\"id\":\"sc_pricing_rule\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pricing Rule\",\"col\":4}},{\"id\":\"sc_coupon_code\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Coupon Code\",\"col\":4}},{\"id\":\"sc_promotional_scheme\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Promotional Scheme\",\"col\":4}},{\"id\":\"sc_customer_directory\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Directory\",\"col\":4}},{\"id\":\"sc_kiosk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Self-Checkout Kiosk\",\"col\":4}},{\"id\":\"spacer_2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"header_reports\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"card_pos\",\"type\":\"card\",\"data\":{\"card_name\":\"Point of Sale\",\"col\":4}},{\"id\":\"card_pricing\",\"type\":\"card\",\"data\":{\"card_name\":\"Pricing & Promotions\",\"col\":4}},{\"id\":\"card_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"card_masters\",\"type\":\"card\",\"data\":{\"card_name\":\"Masters\",\"col\":4}},{\"id\":\"card_restaurant\",\"type\":\"card\",\"data\":{\"card_name\":\"Restaurant\",\"col\":4}}]",
+  "content": "[{\"id\":\"nc_total_pos_sales\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total POS Sales\",\"col\":3}},{\"id\":\"nc_pos_invoices_count\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"POS Invoices Count\",\"col\":3}},{\"id\":\"nc_total_pos_returns\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total POS Returns\",\"col\":3}},{\"id\":\"nc_open_pos_sessions\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open POS Sessions\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"header_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\",\"col\":12}},{\"id\":\"sc_open_pos_prime\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Open POS Prime\",\"col\":4}},{\"id\":\"sc_pos_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Invoice\",\"col\":4}},{\"id\":\"sc_pos_opening\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Opening Entry\",\"col\":4}},{\"id\":\"sc_pos_closing\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Closing Entry\",\"col\":4}},{\"id\":\"sc_pos_profile\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Profile\",\"col\":4}},{\"id\":\"sc_customer\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":4}},{\"id\":\"sc_pricing_rule\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pricing Rule\",\"col\":4}},{\"id\":\"sc_coupon_code\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Coupon Code\",\"col\":4}},{\"id\":\"sc_promotional_scheme\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Promotional Scheme\",\"col\":4}},{\"id\":\"sc_customer_directory\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Directory\",\"col\":4}},{\"id\":\"sc_kiosk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Self-Checkout Kiosk\",\"col\":4}},{\"id\":\"sc_restaurant_order\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Restaurant Order\",\"col\":4}},{\"id\":\"sc_combos_vendidos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Combos Vendidos\",\"col\":4}},{\"id\":\"spacer_2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"header_reports\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"card_pos\",\"type\":\"card\",\"data\":{\"card_name\":\"Point of Sale\",\"col\":4}},{\"id\":\"card_pricing\",\"type\":\"card\",\"data\":{\"card_name\":\"Pricing & Promotions\",\"col\":4}},{\"id\":\"card_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"card_masters\",\"type\":\"card\",\"data\":{\"card_name\":\"Masters\",\"col\":4}},{\"id\":\"card_restaurant\",\"type\":\"card\",\"data\":{\"card_name\":\"Restaurant\",\"col\":4}},{\"id\":\"card_restaurant_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Restaurant Reports\",\"col\":4}}]",
   "creation": "2026-03-04 00:00:00.000000",
-  "modified": "2026-03-07 00:00:00.000000",
+  "modified": "2026-08-06 12:00:00.000000",
   "modified_by": "Administrator",
   "custom_blocks": [],
   "docstatus": 0,
@@ -110,7 +110,7 @@
     },
     {
       "hidden": 0,
-      "is_query_report": 0,
+      "is_query_report": 1,
       "label": "Accounts Receivable",
       "link_count": 0,
       "link_to": "Accounts Receivable",
@@ -120,7 +120,7 @@
     },
     {
       "hidden": 0,
-      "is_query_report": 0,
+      "is_query_report": 1,
       "label": "Sales Register",
       "link_count": 0,
       "link_to": "Sales Register",
@@ -130,7 +130,7 @@
     },
     {
       "hidden": 0,
-      "is_query_report": 0,
+      "is_query_report": 1,
       "label": "Item-wise Sales Register",
       "link_count": 0,
       "link_to": "Item-wise Sales Register",
@@ -217,6 +217,16 @@
     {
       "hidden": 0,
       "is_query_report": 0,
+      "label": "Restaurant Modifier",
+      "link_count": 0,
+      "link_to": "Restaurant Modifier",
+      "link_type": "DocType",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "hidden": 0,
+      "is_query_report": 0,
       "label": "Restaurant Modifier Group",
       "link_count": 0,
       "link_to": "Restaurant Modifier Group",
@@ -241,6 +251,69 @@
       "link_count": 0,
       "link_to": "Restaurant Settings",
       "link_type": "DocType",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "hidden": 0,
+      "is_query_report": 0,
+      "label": "Restaurant Reports",
+      "link_count": 0,
+      "onboard": 0,
+      "type": "Card Break"
+    },
+    {
+      "dependencies": "Restaurant Order",
+      "hidden": 0,
+      "is_query_report": 1,
+      "label": "Combos Vendidos",
+      "link_count": 0,
+      "link_to": "Combos Vendidos",
+      "link_type": "Report",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "dependencies": "Restaurant Order",
+      "hidden": 0,
+      "is_query_report": 1,
+      "label": "Combinaciones de Completos",
+      "link_count": 0,
+      "link_to": "Combinaciones de Completos",
+      "link_type": "Report",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "dependencies": "Restaurant Order",
+      "hidden": 0,
+      "is_query_report": 1,
+      "label": "Componentes de Combos",
+      "link_count": 0,
+      "link_to": "Componentes de Combos",
+      "link_type": "Report",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "dependencies": "Restaurant Order",
+      "hidden": 0,
+      "is_query_report": 1,
+      "label": "Ventas por Destino",
+      "link_count": 0,
+      "link_to": "Ventas por Destino",
+      "link_type": "Report",
+      "onboard": 0,
+      "type": "Link"
+    },
+    {
+      "dependencies": "Restaurant Order",
+      "hidden": 0,
+      "is_query_report": 1,
+      "label": "Ventas Suelto vs Combo",
+      "link_count": 0,
+      "link_to": "Ventas Suelto vs Combo",
+      "link_type": "Report",
       "onboard": 0,
       "type": "Link"
     }
@@ -324,6 +397,18 @@
       "label": "Self-Checkout Kiosk",
       "type": "URL",
       "url": "/pos-prime/kiosk"
+    },
+    {
+      "label": "Restaurant Order",
+      "link_to": "Restaurant Order",
+      "type": "DocType"
+    },
+    {
+      "doc_view": "Report",
+      "label": "Combos Vendidos",
+      "link_to": "Combos Vendidos",
+      "report_ref_doctype": "Restaurant Order",
+      "type": "Report"
     }
   ],
   "standard": 1,

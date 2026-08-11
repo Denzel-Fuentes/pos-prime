@@ -10,6 +10,13 @@ admin explicitly asks for it:
 	bench --site pos.localhost execute pos_prime.restaurant.setup.setup_demo_menu \
 		--kwargs "{'company': 'Estacion Tradicion', 'pos_profile': 'Denzel'}"
 
+A second, independent seed (`setup_demo_variant_menu`) creates an Item
+Group tree with template/variant Items — for testing the POS's template
+card -> variant picker flow (get_item_variants):
+
+	bench --site pos.localhost execute pos_prime.restaurant.setup.setup_demo_variant_menu \
+		--kwargs "{'company': 'Estacion Tradicion', 'pos_profile': 'Denzel'}"
+
 Every step checks for existing data first, so re-running is harmless.
 """
 
@@ -70,6 +77,7 @@ def setup_demo_menu(company, pos_profile):
 	_ensure_placeholder_printer(pos_profile)
 	_ensure_profile_item_groups(profile)
 	_ensure_restaurant_mode_enabled()
+	_ensure_daily_menu_groups()
 
 	frappe.db.commit()
 	print("Demo menu ready.")
@@ -207,7 +215,7 @@ def _ensure_placeholder_printer(pos_profile):
 	print(f"  Printer placeholder: {PRINTER_NAME} (disabled — set the real IP, then enable)")
 
 
-def _ensure_profile_item_groups(profile):
+def _ensure_profile_item_groups(profile, groups=DEMO_GROUPS):
 	"""If this POS Profile restricts visible item groups, the new demo
 	groups need to be added to that allow-list or they'll never show up
 	in the grid (pos_prime/api/items.py's group_filter_list)."""
@@ -215,7 +223,7 @@ def _ensure_profile_item_groups(profile):
 		return  # no restriction configured — nothing to do
 	existing = {row.item_group for row in profile.item_groups}
 	added = False
-	for group in DEMO_GROUPS:
+	for group in groups:
 		if group not in existing:
 			profile.append("item_groups", {"item_group": group})
 			added = True
@@ -230,3 +238,163 @@ def _ensure_restaurant_mode_enabled():
 		settings.enable_restaurant_mode = 1
 		settings.save(ignore_permissions=True)
 		print("  Enabled Restaurant Mode")
+
+
+def _ensure_daily_menu_groups():
+	"""Reference config for the "platos del dia" feature: require an
+	explicit daily selection for the same three demo groups this seed
+	already creates (Sopas, Segundos, Refrescos) — a site adopting this
+	feature for real would list its own equivalent categories here
+	instead."""
+	settings = frappe.get_single("Restaurant Settings")
+	existing = {row.item_group for row in settings.daily_menu_item_groups}
+	added = False
+	for group in DEMO_GROUPS:
+		if group not in existing:
+			settings.append("daily_menu_item_groups", {"item_group": group})
+			added = True
+	if added:
+		settings.save(ignore_permissions=True)
+		print("  Daily Menu requires a selection for: " + ", ".join(DEMO_GROUPS))
+
+
+# ── Template/variant demo data ("Pollo a la Brasa") ──────────────────────
+# Exercises pos_prime/api/items.py's template-card -> get_item_variants
+# flow: two ERPNext Item Templates (has_variants=1) with real variants via
+# the "Corte" Item Attribute, plus one simple item with no variants at all
+# (Pollo Entero) to confirm that path is untouched.
+
+VARIANT_ROOT_GROUP = "Pollo a la Brasa"
+VARIANT_CHILD_GROUPS = ["Pollo 1/4", "Pollo 1/2", "Pollo Entero"]
+
+CORTE_ATTRIBUTE = "Corte"
+# (value, abbr) — abbr is a mandatory field on Item Attribute Value.
+CORTE_VALUES = [
+	("Pierna", "PIE"),
+	("Pecho", "PEC"),
+	("Pierna+Pecho", "P+P"),
+	("Contra+Ala", "C+A"),
+]
+
+# (template_code, template_name, group, [(variant_code, variant_name, attribute_value, rate), ...])
+VARIANT_TEMPLATES = [
+	(
+		"DEMO-POLLO-14",
+		"Pollo a la Brasa 1/4",
+		"Pollo 1/4",
+		[
+			("DEMO-POLLO-14-PIERNA", "Pollo a la Brasa 1/4 - Pierna", "Pierna", 12.0),
+			("DEMO-POLLO-14-PECHO", "Pollo a la Brasa 1/4 - Pecho", "Pecho", 12.0),
+		],
+	),
+	(
+		"DEMO-POLLO-12",
+		"Pollo a la Brasa 1/2",
+		"Pollo 1/2",
+		[
+			("DEMO-POLLO-12-PP", "Pollo a la Brasa 1/2 - Pierna+Pecho", "Pierna+Pecho", 22.0),
+			("DEMO-POLLO-12-CA", "Pollo a la Brasa 1/2 - Contra+Ala", "Contra+Ala", 22.0),
+		],
+	),
+]
+
+# Simple item (no variants) — the "only one option" leaf from the tree.
+VARIANT_SIMPLE_ITEM = ("DEMO-POLLO-ENTERO", "Pollo a la Brasa Entero", "Pollo Entero", 40.0)
+
+
+def setup_demo_variant_menu(company, pos_profile):
+	"""Create the "Pollo a la Brasa" Item Group tree (parent + 3 children),
+	two Item Templates with real variants via the "Corte" attribute, and
+	one variant-less item — a minimal fixture for testing the POS's
+	template-card -> variant-picker flow end to end."""
+	profile = frappe.get_doc("POS Profile", pos_profile)
+	price_list = profile.selling_price_list
+	currency = frappe.db.get_value("Company", company, "default_currency")
+	stock_uom = frappe.db.get_single_value("Stock Settings", "stock_uom") or "Nos"
+
+	_ensure_item_group_node(VARIANT_ROOT_GROUP, _root_item_group(), is_group=1)
+	for group in VARIANT_CHILD_GROUPS:
+		_ensure_item_group_node(group, VARIANT_ROOT_GROUP, is_group=0)
+
+	_ensure_item_attribute(CORTE_ATTRIBUTE, CORTE_VALUES)
+
+	for template_code, template_name, group, variants in VARIANT_TEMPLATES:
+		_ensure_item_template(template_code, template_name, group, stock_uom, CORTE_ATTRIBUTE)
+		for item_code, item_name, attr_value, rate in variants:
+			_ensure_variant_item(item_code, item_name, template_code, group, stock_uom, CORTE_ATTRIBUTE, attr_value)
+			_ensure_price(item_code, price_list, rate, currency)
+
+	simple_code, simple_name, simple_group, simple_rate = VARIANT_SIMPLE_ITEM
+	_ensure_item(simple_code, simple_name, simple_group, is_stock=0, stock_uom=stock_uom)
+	_ensure_price(simple_code, price_list, simple_rate, currency)
+
+	_ensure_profile_item_groups(profile, groups=[VARIANT_ROOT_GROUP, *VARIANT_CHILD_GROUPS])
+
+	frappe.db.commit()
+	print("Demo variant menu ready.")
+
+
+def _ensure_item_group_node(name, parent, is_group):
+	if frappe.db.exists("Item Group", name):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Item Group",
+			"item_group_name": name,
+			"parent_item_group": parent,
+			"is_group": is_group,
+		}
+	).insert(ignore_permissions=True)
+	print(f"  Item Group: {name}")
+
+
+def _ensure_item_attribute(name, values):
+	if frappe.db.exists("Item Attribute", name):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Item Attribute",
+			"attribute_name": name,
+			"item_attribute_values": [
+				{"attribute_value": value, "abbr": abbr} for value, abbr in values
+			],
+		}
+	).insert(ignore_permissions=True)
+	print(f"  Item Attribute: {name}")
+
+
+def _ensure_item_template(item_code, item_name, group, stock_uom, attribute_name):
+	if frappe.db.exists("Item", item_code):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Item",
+			"item_code": item_code,
+			"item_name": item_name,
+			"item_group": group,
+			"stock_uom": stock_uom,
+			"is_stock_item": 0,
+			"has_variants": 1,
+			"variant_based_on": "Item Attribute",
+			"attributes": [{"attribute": attribute_name}],
+		}
+	).insert(ignore_permissions=True)
+	print(f"  Template: {item_code} - {item_name}")
+
+
+def _ensure_variant_item(item_code, item_name, template_code, group, stock_uom, attribute_name, attribute_value):
+	if frappe.db.exists("Item", item_code):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Item",
+			"item_code": item_code,
+			"item_name": item_name,
+			"item_group": group,
+			"stock_uom": stock_uom,
+			"is_stock_item": 0,
+			"variant_of": template_code,
+			"attributes": [{"attribute": attribute_name, "attribute_value": attribute_value}],
+		}
+	).insert(ignore_permissions=True)
+	print(f"  Variant: {item_code} - {item_name}")

@@ -13,8 +13,9 @@ import ItemCard from './ItemCard.vue'
 import ItemSearch from './ItemSearch.vue'
 import ItemGroupFilter from './ItemGroupFilter.vue'
 import BatchSerialSelector from './BatchSerialSelector.vue'
+import VariantPickerDialog from './VariantPickerDialog.vue'
 import CameraScanner from '@/components/scanner/CameraScanner.vue'
-import ComboStrip from '@/components/restaurant/ComboStrip.vue'
+import ComboCard from '@/components/restaurant/ComboCard.vue'
 import ComboBuilderDialog from '@/components/restaurant/ComboBuilderDialog.vue'
 import { Package, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
 import { useDeskMode } from '@/composables/useDeskMode'
@@ -59,16 +60,52 @@ function updateColumnCount() {
   const width = scrollContainer.value?.clientWidth || window.innerWidth
   if (width < 640) columnCount.value = 2
   else if (width < 768) columnCount.value = 3
-  else columnCount.value = 4
+  else if (width < 1000) columnCount.value = 4
+  else columnCount.value = 5
 }
 
-// Group filtered items into rows for virtual scrolling
+/** One grid cell — combos and items share the same grid (and therefore the
+ * same virtualizer rows), so they travel through it as a tagged union. */
+type GridEntry =
+  | { kind: 'combo'; key: string; combo: RestaurantCombo }
+  | { kind: 'item'; key: string; item: Item }
+
+// Combos aren't real Items: they're in no Item Group and don't participate
+// in the store's Fuse.js catalog search. So they're listed only in the
+// unfiltered grid, and matched here against the search box by name/print
+// label (N is always small — no need for fuzzy matching).
+const visibleCombos = computed(() => {
+  if (!restaurantStore.enabled) return []
+  if (itemsStore.selectedGroup && itemsStore.selectedGroup !== 'All Item Groups') return []
+  const term = itemsStore.searchTerm?.trim().toLowerCase()
+  if (!term) return restaurantStore.combos
+  return restaurantStore.combos.filter(
+    (c) => c.combo_name.toLowerCase().includes(term) || c.print_label?.toLowerCase().includes(term)
+  )
+})
+
+// Combos first, then the catalog — a combo is the headline offer of a
+// restaurant menu, and pinning them to the top keeps them reachable without
+// scrolling however long the item list is.
+const entries = computed<GridEntry[]>(() => [
+  ...visibleCombos.value.map((combo) => ({
+    kind: 'combo' as const,
+    key: `combo:${combo.name}`,
+    combo,
+  })),
+  ...itemsStore.filteredItems.map((item) => ({
+    kind: 'item' as const,
+    key: `item:${item.item_code}`,
+    item,
+  })),
+])
+
+// Group into rows for virtual scrolling
 const rows = computed(() => {
-  const items = itemsStore.filteredItems
   const cols = columnCount.value
-  const result: Item[][] = []
-  for (let i = 0; i < items.length; i += cols) {
-    result.push(items.slice(i, i + cols))
+  const result: GridEntry[][] = []
+  for (let i = 0; i < entries.value.length; i += cols) {
+    result.push(entries.value.slice(i, i + cols))
   }
   return result
 })
@@ -77,7 +114,7 @@ const virtualizer = useVirtualizer(
   computed(() => ({
     count: rows.value.length,
     getScrollElement: () => scrollContainer.value,
-    estimateSize: () => settingsStore.hideImages ? 70 : (isDeskMode.value ? 185 : 200),
+    estimateSize: () => settingsStore.hideImages ? 70 : (isDeskMode.value ? 200 : 215),
     overscan: 5,
   }))
 )
@@ -120,6 +157,9 @@ function onGroupSelect(group: string) {
 // Batch/Serial selector state
 const batchSerialItem = ref<Item | null>(null)
 
+// Variant picker state (template item clicked, awaiting a variant choice)
+const variantPickerItem = ref<Item | null>(null)
+
 // Combo builder state
 const comboBeingBuilt = ref<RestaurantCombo | null>(null)
 
@@ -139,6 +179,10 @@ function showStockError(msg: string) {
 }
 
 function onItemSelect(item: Item) {
+  if (item.has_variants) {
+    variantPickerItem.value = item
+    return
+  }
   if (item.has_batch_no || item.has_serial_no) {
     // Show batch/serial selector dialog
     batchSerialItem.value = item
@@ -146,6 +190,11 @@ function onItemSelect(item: Item) {
   }
   const err = cartStore.addItem(item, settingsStore.validateStockOnSave, currentDestination())
   if (err) showStockError(err)
+}
+
+function onVariantPicked(variant: Item) {
+  variantPickerItem.value = null
+  onItemSelect(variant)
 }
 
 function onBatchSerialConfirm(batchNo: string | null, serialNo: string | null) {
@@ -204,6 +253,8 @@ async function handleBarcodeScan(barcode: string) {
         barcode: result.barcode || null,
         item_tax_template: null,
         is_product_bundle: false,
+        has_variants: false,
+        variant_of: null,
       }, settingsStore.validateStockOnSave, destination)
       if (err) { showStockError(err); return }
 
@@ -249,7 +300,7 @@ const headerLabel = computed(() => {
       <div class="hidden sm:flex items-center gap-2 shrink-0">
         <button
           v-if="itemsStore.itemGroups.length > 1"
-          class="hidden lg:flex items-center justify-center shrink-0 w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          class="hidden lg:flex items-center justify-center shrink-0 w-9 h-9 rounded-md text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           :title="showCategories ? __('Hide categories') : __('Show categories')"
           @click="toggleCategories"
         >
@@ -268,10 +319,8 @@ const headerLabel = computed(() => {
       />
     </div>
 
-    <!-- Combo strip -->
-    <ComboStrip :search-term="itemsStore.searchTerm" @select="onComboSelect" />
-
-    <!-- Mobile/tablet horizontal categories -->
+    <!-- Mobile horizontal categories (tablets and up use the sidebar below —
+         a fixed vertical list is faster to scan/tap than a scrolling strip) -->
     <ItemGroupFilter
       v-if="itemsStore.itemGroups.length > 1"
       mode="mobile"
@@ -304,7 +353,7 @@ const headerLabel = computed(() => {
         </div>
 
         <div
-          v-else-if="itemsStore.filteredItems.length === 0"
+          v-else-if="entries.length === 0"
           class="flex flex-col items-center justify-center py-12"
         >
           <Package class="text-gray-300 dark:text-gray-600 mb-3" :size="48" />
@@ -335,12 +384,14 @@ const headerLabel = computed(() => {
               style="gap: var(--margin-sm, 8px);"
               :style="{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }"
             >
-              <ItemCard
-                v-for="item in rows[virtualRow.index]"
-                :key="item.item_code"
-                :item="item"
-                @select="onItemSelect"
-              />
+              <template v-for="entry in rows[virtualRow.index]" :key="entry.key">
+                <ComboCard
+                  v-if="entry.kind === 'combo'"
+                  :combo="entry.combo"
+                  @select="onComboSelect"
+                />
+                <ItemCard v-else :item="entry.item" @select="onItemSelect" />
+              </template>
             </div>
           </div>
         </div>
@@ -363,6 +414,14 @@ const headerLabel = computed(() => {
       :has-serial-no="batchSerialItem.has_serial_no"
       @confirm="onBatchSerialConfirm"
       @close="batchSerialItem = null"
+    />
+
+    <!-- Variant picker dialog -->
+    <VariantPickerDialog
+      v-if="variantPickerItem"
+      :item="variantPickerItem"
+      @select="onVariantPicked"
+      @close="variantPickerItem = null"
     />
 
     <!-- Combo builder dialog -->

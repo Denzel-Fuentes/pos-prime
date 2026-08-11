@@ -94,6 +94,22 @@ export const useItemsStore = defineStore('items', () => {
     }
   }
 
+  async function fetchVariants(templateItemCode: string, posProfile?: string): Promise<Item[]> {
+    try {
+      const { usePosSessionStore } = await import('@/stores/posSession')
+      const session = usePosSessionStore()
+      const profile = posProfile || session.posProfile || ''
+
+      const data = await call('pos_prime.api.items.get_item_variants', {
+        template_item_code: templateItemCode,
+        pos_profile: profile,
+      })
+      return data.items || []
+    } catch {
+      return []
+    }
+  }
+
   async function searchByBarcode(barcode: string, posProfile?: string) {
     try {
       const { usePosSessionStore } = await import('@/stores/posSession')
@@ -139,6 +155,7 @@ export const useItemsStore = defineStore('items', () => {
     error,
     fetchAllItems,
     fetchItemGroups,
+    fetchVariants,
     searchByBarcode,
     setSearchTerm,
     setSelectedGroup,

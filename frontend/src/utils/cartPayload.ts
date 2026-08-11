@@ -65,6 +65,7 @@ export function makeCartItem(item: Item, overrides: Partial<CartItem> = {}): Car
     combo_slot_idx: null,
     destination: null,
     notes: null,
+    combo_notes: null,
     modifiers: [],
     ...overrides,
   }
@@ -141,6 +142,7 @@ export function fromInvoiceItem(item: InvoiceItem, overrides: Partial<CartItem> 
     combo_slot_idx: item.combo_slot_idx ?? null,
     destination: item.destination || null,
     notes: item.notes || null,
+    combo_notes: item.combo_notes || null,
     modifiers: (item.modifiers || []).map((name) => ({ modifier: name, label: name })),
     ...overrides,
   }
@@ -178,6 +180,7 @@ export function toPayloadItem(item: CartItem) {
     combo_slot_idx: item.combo_slot_idx ?? undefined,
     destination: item.destination || undefined,
     notes: item.notes || undefined,
+    combo_notes: item.combo_notes || undefined,
     modifiers: item.modifiers?.length ? item.modifiers.map((m) => m.modifier) : undefined,
   }
 }

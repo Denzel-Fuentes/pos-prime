@@ -25,12 +25,22 @@ import {
 } from 'lucide-vue-next'
 import DisplayControls from '@/components/display/DisplayControls.vue'
 
+// Set by callers (POS.vue) that render their own equivalent mobile-header
+// buttons elsewhere (e.g. next to the customer search bar in Cart.vue),
+// so this component's own compact header would otherwise be redundant.
+// Other AppShell consumers (Orders, CustomerDisplay) rely on the default
+// header being present — it's their only way to open the mobile drawer.
+const props = defineProps<{ hideMobileHeader?: boolean }>()
+
 const { isDeskMode } = useDeskMode()
 const router = useRouter()
 const route = useRoute()
 const draftsStore = useDraftsStore()
 const sessionStore = usePosSessionStore()
-const sidebarOpen = ref(false)
+// Controlled from the parent so mobile-header buttons living outside this
+// component (e.g. next to the customer search bar in Cart.vue) can open
+// the drawer too.
+const sidebarOpen = defineModel<boolean>('sidebarOpen', { default: false })
 const showDisplayPopover = ref(false)
 
 const companyLogo = ref<string | null>(null)
@@ -293,27 +303,20 @@ const emit = defineEmits<{
 
     <!-- Main content area -->
     <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Mobile header -->
-      <header class="lg:hidden flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 h-12">
-        <button @click="goToDesk" class="flex items-center gap-2 cursor-pointer" :title="`Back to ${sessionStore.company || 'Desk'}`">
-          <img
-            v-if="companyLogo"
-            :src="companyLogo"
-            :alt="sessionStore.company"
-            class="w-6 h-6 rounded-lg object-contain"
-          />
-          <div v-else class="w-6 h-6 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-[10px]">{{ companyAbbr }}</span>
-          </div>
-          <span class="font-bold text-gray-800 dark:text-gray-200 text-sm">{{ sessionStore.company || 'POS Prime' }}</span>
-        </button>
+      <!-- Mobile header (compact — no logo/company name to save vertical
+           space). Skipped when the caller renders its own equivalent
+           buttons elsewhere (see hideMobileHeader above). -->
+      <header
+        v-if="!props.hideMobileHeader"
+        class="lg:hidden flex items-center justify-end bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-2 h-9"
+      >
         <div class="flex items-center gap-1">
           <button
             @click="emit('toggleHeldOrders')"
             aria-label="Held Orders"
-            class="relative w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            class="relative w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
           >
-            <PauseCircle :size="18" />
+            <PauseCircle :size="16" />
             <span
               v-if="draftCount > 0"
               class="absolute top-0.5 end-0.5 bg-amber-500 text-white text-[7px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
@@ -323,11 +326,11 @@ const emit = defineEmits<{
           </button>
           <button
             @click="sidebarOpen = !sidebarOpen"
-            class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Toggle menu"
           >
-            <Menu v-if="!sidebarOpen" :size="18" />
-            <X v-else :size="18" />
+            <Menu v-if="!sidebarOpen" :size="16" />
+            <X v-else :size="16" />
           </button>
         </div>
       </header>
@@ -343,7 +346,8 @@ const emit = defineEmits<{
       <Transition name="slide-right">
         <nav
           v-if="sidebarOpen"
-          class="lg:hidden fixed end-0 top-12 z-50 bg-white dark:bg-gray-900 shadow-xl rounded-bl-2xl w-52 border-s border-gray-100 dark:border-gray-800"
+          class="lg:hidden fixed end-0 z-50 bg-white dark:bg-gray-900 shadow-xl rounded-bl-2xl w-52 border-s border-gray-100 dark:border-gray-800"
+          :class="props.hideMobileHeader ? 'top-0' : 'top-9'"
         >
           <div class="py-1">
             <button
@@ -382,24 +386,6 @@ const emit = defineEmits<{
       <main class="flex-1 overflow-hidden">
         <slot />
       </main>
-
-      <!-- Mobile bottom nav -->
-      <nav class="lg:hidden flex items-center justify-around bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 h-14">
-        <button
-          v-for="item in navItems"
-          :key="item.routeName"
-          @click="navigate(item.routeName)"
-          class="flex flex-col items-center justify-center flex-1 h-full transition-colors"
-          :class="
-            currentRouteName === item.routeName
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-gray-400 dark:text-gray-500'
-          "
-        >
-          <component :is="item.icon" :size="18" :stroke-width="currentRouteName === item.routeName ? 2.5 : 2" />
-          <span class="text-[9px] mt-0.5 font-semibold">{{ item.name }}</span>
-        </button>
-      </nav>
     </div>
   </div>
 </template>

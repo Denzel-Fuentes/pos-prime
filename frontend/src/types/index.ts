@@ -73,6 +73,8 @@ export interface Item {
   barcodes?: string[]
   item_tax_template: string | null
   is_product_bundle: boolean
+  has_variants: boolean
+  variant_of: string | null
 }
 
 export interface CartItem {
@@ -125,6 +127,12 @@ export interface CartItem {
   // Free-text kitchen note ("sin cebolla") — for exceptional requests.
   // Frequent customizations should go through modifiers instead.
   notes?: string | null
+  // Instance-wide note ("todo para llevar en cajas separadas") — set once
+  // and replicated onto every component line of the combo instance so it
+  // survives regardless of which line the server reads (see
+  // cartStore.updateComboNotes). Distinct from `notes`, which is per
+  // component.
+  combo_notes?: string | null
   // Structured, free-only modifiers (Restaurant Modifier names). Kept
   // alongside a denormalized display string built when they're set, so
   // CartItem.vue doesn't need to resolve names against restaurantStore
@@ -417,6 +425,7 @@ export interface InvoiceItem {
   combo?: string | null
   combo_slot_idx?: number | null
   combo_label?: string | null
+  combo_notes?: string | null
   // Raw Restaurant Modifier names (not print labels — those aren't
   // stored server-side; a resumed draft's chip falls back to showing
   // the raw name). See pos_prime/api/_utils.py::format_invoice_item.
@@ -502,6 +511,9 @@ export interface RestaurantSettings {
   enable_restaurant_mode: boolean
   default_destination: RestaurantDestination | null
   combo_strip_label: string | null
+  disable_coupon_code: boolean
+  disable_more_options: boolean
+  hide_category_search: boolean
   print_comanda_on_payment: boolean
   comanda_background_job: boolean
   fail_silently: boolean
@@ -516,5 +528,15 @@ export interface RestaurantConfig {
   combos: RestaurantCombo[]
   modifier_groups: RestaurantModifierGroup[]
   has_printer: boolean
+  has_receipt_printer: boolean
   destinations: RestaurantDestination[]
+}
+
+/** One Item Group's candidate dishes for the "platos del dia" picker shown
+ * at shift-open time — see pos_prime.api.restaurant.get_daily_menu_candidates.
+ * Only Item Groups configured under Restaurant Settings' Daily Menu section
+ * show up here; everything else is unaffected by this feature. */
+export interface DailyMenuGroup {
+  item_group: string
+  items: { item_code: string; item_name: string }[]
 }

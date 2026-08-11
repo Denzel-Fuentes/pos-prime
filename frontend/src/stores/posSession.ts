@@ -2,7 +2,7 @@
 // Licensed under GPLv3. See license.txt
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { call } from 'frappe-ui'
 import { session } from './session'
 
@@ -14,15 +14,6 @@ export const usePosSessionStore = defineStore('posSession', () => {
   const loading = ref(false)
 
   const hasOpenShift = computed(() => isOpen.value && !!openingEntry.value)
-
-  // Update desk page-head indicator with opened POS profile
-  watch(posProfile, (name) => {
-    if (name && typeof window.posPageSetProfile === 'function') {
-      window.posPageSetProfile(name)
-    } else if (!name && typeof window.posPageClearProfile === 'function') {
-      window.posPageClearProfile()
-    }
-  })
 
   async function checkOpeningEntry() {
     loading.value = true
@@ -49,6 +40,10 @@ export const usePosSessionStore = defineStore('posSession', () => {
     pos_profile: string
     company: string
     balance_details: { mode_of_payment: string; opening_amount: number }[]
+    // Restaurant module: item codes picked as available today, from the
+    // Item Groups configured under Restaurant Settings' Daily Menu
+    // section. Omitted/empty is a no-op — identical to today's behavior.
+    available_items?: string[]
   }) {
     loading.value = true
     try {
@@ -58,6 +53,7 @@ export const usePosSessionStore = defineStore('posSession', () => {
           pos_profile: args.pos_profile,
           company: args.company,
           balance_details: JSON.stringify(args.balance_details),
+          available_items: JSON.stringify(args.available_items || []),
         }
       )
       if (data.name) {

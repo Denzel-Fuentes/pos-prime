@@ -15,8 +15,8 @@ from pos_prime.api._utils import (
 )
 from pos_prime.api.invoices import _create_pos_invoice_doc
 from pos_prime.api.items import _get_group_and_children
-from pos_prime.restaurant.pricing import distribute_combo_price
-from pos_prime.restaurant.printing import print_comanda, send_test_ticket
+from pos_prime.restaurant.pricing import split_combo_price
+from pos_prime.restaurant.printing import print_comanda, print_receipt, send_test_ticket
 
 DESTINATIONS = ("Mesa", "Para llevar")
 
@@ -96,7 +96,22 @@ def get_restaurant_config(pos_profile):
 	has_printer = bool(
 		frappe.get_all(
 			"Restaurant Printer",
-			filters={"disabled": 0, "pos_profile": ["in", ["", pos_profile]]},
+			filters={
+				"disabled": 0,
+				"pos_profile": ["in", ["", pos_profile]],
+				"printer_role": "Comanda (Cocina)",
+			},
+			limit_page_length=1,
+		)
+	)
+	has_receipt_printer = bool(
+		frappe.get_all(
+			"Restaurant Printer",
+			filters={
+				"disabled": 0,
+				"pos_profile": ["in", ["", pos_profile]],
+				"printer_role": "Recibo (Caja)",
+			},
 			limit_page_length=1,
 		)
 	)
@@ -106,8 +121,52 @@ def get_restaurant_config(pos_profile):
 		"combos": combos,
 		"modifier_groups": modifier_groups,
 		"has_printer": has_printer,
+		"has_receipt_printer": has_receipt_printer,
 		"destinations": list(DESTINATIONS),
 	}
+
+
+@frappe.whitelist()
+def get_daily_menu_candidates(pos_profile):
+	"""Dishes eligible for the "platos del dia" picker shown when opening a
+	shift — one section per Item Group configured under Restaurant
+	Settings' Daily Menu section (e.g. Segundos, Sopas, Refrescos). Empty
+	when nothing is configured there, in which case the frontend shows no
+	picker and the shift opens exactly as it always has.
+
+	Called directly from OpenShift.vue, ahead of get_restaurant_config —
+	no POS session/shift exists yet at that point.
+	"""
+	validate_pos_access(pos_profile)
+
+	configured_groups = [
+		r.item_group
+		for r in frappe.get_all(
+			"Restaurant Daily Menu Item Group",
+			filters={"parent": "Restaurant Settings"},
+			fields=["item_group"],
+		)
+	]
+	if not configured_groups:
+		return {"groups": []}
+
+	groups = []
+	for group in configured_groups:
+		eligible_groups = _get_group_and_children(group)
+		items = frappe.get_all(
+			"Item",
+			filters={
+				"item_group": ["in", eligible_groups],
+				"disabled": 0,
+				"is_sales_item": 1,
+				"has_variants": 0,
+			},
+			fields=["item_code", "item_name"],
+			order_by="item_name asc",
+		)
+		groups.append({"item_group": group, "items": items})
+
+	return {"groups": groups}
 
 
 @frappe.whitelist()
@@ -202,7 +261,15 @@ def _resolve_combo_selection(combo_doc, selections, profile, precision=2):
 	}
 
 	ordered_list_rates = [flt(list_rates.get(code, 0)) for code in item_codes]
-	rates = distribute_combo_price(ordered_list_rates, flt(combo_doc.combo_price), precision)
+	# Both lists are built by walking combo_doc.slots, so they stay aligned.
+	rates = split_combo_price(
+		ordered_list_rates,
+		flt(combo_doc.combo_price),
+		method=combo_doc.effective_pricing_method(),
+		discount_orders=[slot.discount_order or 0 for slot in slots],
+		allow_negative=bool(combo_doc.allow_negative_component),
+		precision=precision,
+	)
 
 	result = []
 	for i, slot in enumerate(slots):
@@ -260,7 +327,7 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 	  - combo, combo_slot_idx: which Restaurant Combo / slot this line fills
 
 	Component rates are always re-derived server-side via
-	distribute_combo_price — any rate the client sent for a combo line is
+	split_combo_price — any rate the client sent for a combo line is
 	discarded. Every other kwarg (taxes, discounts, loyalty, ...) is the
 	same as create_pos_invoice and is forwarded as-is.
 
@@ -353,6 +420,10 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 			"label": label,
 			"destination": group_items[0]["destination"],
 			"combo_price": combo_doc.combo_price,
+			# Instance-wide note — the frontend replicates it onto every
+			# component line (cartStore.updateComboNotes), so any one line
+			# in the group carries it.
+			"notes": (group_items[0].get("combo_notes") or "").strip(),
 		}
 
 	args = dict(kwargs)
@@ -371,6 +442,7 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 	)
 
 	_trigger_comanda_print(order)
+	_trigger_receipt_print(invoice)
 
 	response = format_invoice_response(invoice)
 	response["restaurant_order"] = order.name
@@ -423,6 +495,48 @@ def reprint_comanda(restaurant_order):
 		pass
 	return frappe.db.get_value(
 		"Restaurant Order", restaurant_order, ["comanda_status", "comanda_error"], as_dict=True
+	)
+
+
+def _trigger_receipt_print(invoice):
+	"""Print (or skip) the till receipt per Restaurant Settings. Mirrors
+	_trigger_comanda_print above exactly — same background/inline split,
+	same "never block checkout" guarantee regardless of fail_silently."""
+	settings = frappe.get_cached_doc("Restaurant Settings")
+	if not settings.print_receipt_on_payment:
+		invoice.db_set("pos_prime_receipt_status", "Not Required", update_modified=False)
+		return
+
+	if settings.comanda_background_job:
+		frappe.enqueue(
+			"pos_prime.restaurant.printing.print_receipt",
+			queue="short",
+			enqueue_after_commit=True,
+			timeout=60,
+			pos_invoice=invoice.name,
+		)
+	else:
+		try:
+			print_receipt(invoice.name)
+		except Exception:
+			frappe.log_error(title="Receipt print failed (inline)")
+
+
+@frappe.whitelist()
+def reprint_receipt(pos_invoice):
+	"""User-triggered reprint (Desk button, ReceiptPreview.vue). Same
+	shape as reprint_comanda above — runs inline, swallows the exception
+	since print_receipt already persisted the status/error fields."""
+	validate_pos_access()
+	try:
+		print_receipt(pos_invoice)
+	except Exception:
+		pass
+	return frappe.db.get_value(
+		"POS Invoice",
+		pos_invoice,
+		["pos_prime_receipt_status", "pos_prime_receipt_error"],
+		as_dict=True,
 	)
 
 
@@ -502,6 +616,7 @@ def _build_restaurant_order(invoice, items, combo_meta, profile, modifier_labels
 				"combo_uid": combo_uid,
 				"combo_price": meta["combo_price"],
 				"destination": meta["destination"],
+				"notes": meta["notes"],
 				"sort_index": meta["instance_no"],
 			},
 		)

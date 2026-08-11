@@ -2,6 +2,11 @@
 // Licensed under GPLv3. See license.txt
 
 frappe.query_reports["Ventas Suelto vs Combo"] = {
+	onload(report) {
+		report.page.add_inner_message(
+			__("Por cada item, cuánto se vendió suelto vs. como parte de un combo, con su cantidad e ingresos totales.")
+		);
+	},
 	filters: [
 		{
 			fieldname: "from_date",

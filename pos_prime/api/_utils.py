@@ -132,6 +132,8 @@ def build_item_dict(item_data, profile):
             item_dict["pos_prime_combo_slot_idx"] = item_data["combo_slot_idx"]
         if item_data.get("combo_label"):
             item_dict["pos_prime_combo_label"] = item_data["combo_label"]
+        if item_data.get("combo_notes"):
+            item_dict["pos_prime_combo_notes"] = item_data["combo_notes"]
         if item_data.get("modifiers"):
             # Raw Restaurant Modifier names, comma-joined — not print
             # labels. This needs to round-trip through a held draft and
@@ -556,6 +558,7 @@ def format_invoice_item(item):
         item_dict["combo"] = item.get("pos_prime_combo")
         item_dict["combo_slot_idx"] = item.get("pos_prime_combo_slot_idx")
         item_dict["combo_label"] = item.get("pos_prime_combo_label")
+        item_dict["combo_notes"] = item.get("pos_prime_combo_notes")
         raw_modifiers = item.get("pos_prime_modifiers")
         item_dict["modifiers"] = raw_modifiers.split(",") if raw_modifiers else []
 

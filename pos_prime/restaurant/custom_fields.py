@@ -88,6 +88,19 @@ RESTAURANT_CUSTOM_FIELDS = {
 			"print_hide": 1,
 			"no_copy": 1,
 		},
+		{
+			# Instance-wide combo note ("todo para llevar en cajas separadas"),
+			# replicated onto every component line by the frontend
+			# (cartStore.updateComboNotes) so it survives hold/resume
+			# regardless of which line the server reads it from. Distinct
+			# from pos_prime_notes, which is per component.
+			"fieldname": "pos_prime_combo_notes",
+			"fieldtype": "Small Text",
+			"label": "Combo Note",
+			"insert_after": "pos_prime_modifiers",
+			"print_hide": 1,
+			"no_copy": 1,
+		},
 	],
 	"POS Invoice": [
 		{
@@ -100,6 +113,59 @@ RESTAURANT_CUSTOM_FIELDS = {
 			"print_hide": 1,
 			"no_copy": 1,
 			"allow_on_submit": 1,
+		},
+		{
+			# Till receipt print status — parallel to Restaurant Order's
+			# comanda_status, but lives on POS Invoice since a receipt is
+			# tied to the invoice itself, not to a Restaurant Order (which
+			# doesn't exist for non-restaurant sales). Written via db_set
+			# after submit, same as comanda_status; allow_on_submit is set
+			# anyway so a plain .save() from Desk wouldn't be blocked either.
+			"fieldname": "pos_prime_receipt_status",
+			"fieldtype": "Select",
+			"label": "Receipt Print Status",
+			"options": "Not Printed\nPrinted\nFailed\nNot Required",
+			"insert_after": "pos_prime_restaurant_order",
+			"read_only": 1,
+			"print_hide": 1,
+			"no_copy": 1,
+			"allow_on_submit": 1,
+		},
+		{
+			"fieldname": "pos_prime_receipt_printed_at",
+			"fieldtype": "Datetime",
+			"label": "Receipt Printed At",
+			"insert_after": "pos_prime_receipt_status",
+			"read_only": 1,
+			"print_hide": 1,
+			"no_copy": 1,
+			"allow_on_submit": 1,
+		},
+		{
+			"fieldname": "pos_prime_receipt_error",
+			"fieldtype": "Small Text",
+			"label": "Receipt Print Error",
+			"insert_after": "pos_prime_receipt_printed_at",
+			"read_only": 1,
+			"print_hide": 1,
+			"no_copy": 1,
+			"allow_on_submit": 1,
+		},
+	],
+	"POS Opening Entry": [
+		{
+			# The dishes explicitly enabled for sale today, for Item Groups
+			# configured under Restaurant Settings' "Daily Menu" section. Rides
+			# along on the shift's own opening entry — there's no other
+			# document whose lifecycle matches "for the duration of this
+			# shift" the way this one does (same reasoning as the POS Invoice
+			# Item fields above, just for a different document).
+			"fieldname": "pos_prime_available_items",
+			"fieldtype": "Table MultiSelect",
+			"options": "Restaurant Opening Entry Item",
+			"label": "Available Dishes Today",
+			"insert_after": "balance_details",
+			"no_copy": 1,
 		},
 	],
 }

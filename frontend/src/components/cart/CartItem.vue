@@ -3,9 +3,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Minus, Plus, Trash2, Gift, Zap, Package, ShoppingBag, StickyNote, ListPlus, UtensilsCrossed } from 'lucide-vue-next'
+import { Minus, Plus, Trash2, Gift, Zap, Package, ShoppingBag, ListPlus, UtensilsCrossed } from 'lucide-vue-next'
 import { useCurrency } from '@/composables/useCurrency'
 import { useRestaurantStore } from '@/stores/restaurant'
+import { useTouchDevice } from '@/composables/useTouchDevice'
 import type { CartItem } from '@/types'
 
 const props = defineProps<{
@@ -15,9 +16,10 @@ const props = defineProps<{
   // True for a component row rendered inside ComboCartGroup. Qty is fixed
   // at 1 by the price-distribution algorithm and deletion removes the
   // whole combo instance (via the group header), not just this row — so
-  // both controls are redundant/misleading here and are hidden. Destination/
-  // notes/modifiers are also set once for the whole instance, not per
-  // component, so that row is hidden here too.
+  // both controls are redundant/misleading here and are hidden. Destination
+  // is also set once for the whole instance (via the group header), so that
+  // chip is hidden too — but notes/modifiers are per component (e.g. "hold
+  // the salt" on just the soup) and stay editable here.
   isComboComponent?: boolean
 }>()
 
@@ -26,16 +28,30 @@ const emit = defineEmits<{
   updateQty: [index: number, qty: number]
   remove: [index: number]
   toggleDestination: [index: number]
-  editNotes: [index: number]
   editModifiers: [index: number]
 }>()
 
 const { formatCurrency } = useCurrency()
 const restaurantStore = useRestaurantStore()
+const { isTouchDevice } = useTouchDevice()
 
-const availableModifierGroups = computed(() =>
-  restaurantStore.enabled ? restaurantStore.modifierGroupsForItem(props.item.item_code) : []
-)
+// Qty/delete column widths must stay in lockstep with Cart.vue's header row
+// and ComboCartGroup.vue's placeholder columns, since combo-component rows
+// (isComboComponent) hide these controls but keep placeholder divs the same
+// width to preserve the Amount column's alignment across row types.
+const qtyColWidth = computed(() => (isTouchDevice.value ? '132px' : '88px'))
+const deleteColWidth = computed(() => (isTouchDevice.value ? '44px' : '28px'))
+
+// Notes and modifiers are unified behind one button/dialog (ModifierPicker
+// carries a manual text box alongside any predefined modifier chips), so
+// this chip's summary combines both rather than showing separate ones.
+const hasNotesOrModifiers = computed(() => !!props.item.notes || !!(props.item.modifiers && props.item.modifiers.length))
+const modifiersSummary = computed(() => {
+  const parts: string[] = []
+  if (props.item.notes) parts.push(props.item.notes)
+  if (props.item.modifiers?.length) parts.push(...props.item.modifiers.map((m) => m.label))
+  return parts.length ? parts.join(', ') : __('Modifiers')
+})
 </script>
 
 <template>
@@ -112,21 +128,26 @@ const availableModifierGroups = computed(() =>
           {{ item.item_tax_template }}
         </div>
 
-        <!-- Restaurant: destination / notes / modifiers (hidden for combo
-             components, set once for the whole instance, and for free
-             pricing-rule items, which aren't independently editable) -->
+        <!-- Restaurant: destination / notes / modifiers (hidden entirely
+             for free pricing-rule items, which aren't independently
+             editable; destination is additionally hidden for combo
+             components since it's set once for the whole instance) -->
         <div
-          v-if="restaurantStore.enabled && !isComboComponent && !item.is_free_item"
+          v-if="restaurantStore.enabled && !item.is_free_item"
           class="flex flex-wrap items-center gap-1 mt-1"
           @click.stop
         >
           <button
+            v-if="!isComboComponent"
             @click="emit('toggleDestination', index)"
             :aria-label="__('Toggle destination')"
-            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-wide transition-colors shrink-0"
-            :class="item.destination === 'Para llevar'
-              ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400'
-              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'"
+            class="inline-flex items-center gap-1 rounded font-bold uppercase tracking-wide transition-colors shrink-0"
+            :class="[
+              isTouchDevice ? 'px-2 py-1 text-[10px]' : 'px-1.5 py-0 text-[9px]',
+              item.destination === 'Para llevar'
+                ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400'
+                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+            ]"
           >
             <ShoppingBag v-if="item.destination === 'Para llevar'" :size="9" />
             <UtensilsCrossed v-else :size="9" />
@@ -134,59 +155,57 @@ const availableModifierGroups = computed(() =>
           </button>
 
           <button
-            @click="emit('editNotes', index)"
-            :aria-label="__('Kitchen note')"
-            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium max-w-[140px] transition-colors"
-            :class="item.notes
-              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'"
-          >
-            <StickyNote :size="9" class="shrink-0" />
-            <span class="truncate">{{ item.notes || __('Note') }}</span>
-          </button>
-
-          <button
-            v-if="availableModifierGroups.length > 0 || (item.modifiers && item.modifiers.length > 0)"
             @click="emit('editModifiers', index)"
             :aria-label="__('Modifiers')"
-            class="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium max-w-[160px] transition-colors"
-            :class="item.modifiers && item.modifiers.length > 0
-              ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'"
+            class="inline-flex items-center gap-1 rounded font-medium max-w-[200px] transition-colors"
+            :class="[
+              isTouchDevice ? 'px-2 py-1 text-[10px]' : 'px-1.5 py-0 text-[9px]',
+              hasNotesOrModifiers
+                ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+            ]"
           >
             <ListPlus :size="9" class="shrink-0" />
-            <span class="truncate">
-              {{ item.modifiers && item.modifiers.length > 0 ? item.modifiers.map((m) => m.label).join(', ') : __('Modifiers') }}
-            </span>
+            <span class="truncate">{{ modifiersSummary }}</span>
           </button>
         </div>
       </div>
 
       <!-- Qty Controls (hidden for free items and combo components) -->
-      <div v-if="!item.is_free_item && !isComboComponent" class="flex items-center gap-0.5 shrink-0">
+      <div
+        v-if="!item.is_free_item && !isComboComponent"
+        class="flex items-center gap-0.5 shrink-0"
+        :style="{ width: qtyColWidth }"
+      >
         <button
           @click.stop="emit('updateQty', index, item.qty - 1)"
           aria-label="Decrease quantity"
-          class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 active:scale-90 transition-all duration-150"
+          class="rounded-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 active:scale-90 transition-all duration-150"
+          :class="isTouchDevice ? 'w-11 h-11' : 'w-7 h-7'"
         >
-          <Minus :size="14" />
+          <Minus :size="isTouchDevice ? 18 : 14" />
         </button>
-        <span class="w-7 text-center text-xs font-bold text-gray-800 dark:text-gray-200">
+        <span
+          class="text-center text-xs font-bold text-gray-800 dark:text-gray-200"
+          :class="isTouchDevice ? 'w-11' : 'w-7'"
+        >
           {{ item.qty }}
         </span>
         <button
           @click.stop="emit('updateQty', index, item.qty + 1)"
           aria-label="Increase quantity"
-          class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 active:scale-90 transition-all duration-150"
+          class="rounded-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 active:scale-90 transition-all duration-150"
+          :class="isTouchDevice ? 'w-11 h-11' : 'w-7 h-7'"
         >
-          <Plus :size="14" />
+          <Plus :size="isTouchDevice ? 18 : 14" />
         </button>
       </div>
-      <div v-else-if="item.is_free_item" class="shrink-0">
+      <div v-else-if="item.is_free_item" class="shrink-0" :style="{ width: qtyColWidth }">
         <span class="text-xs font-bold text-green-600 dark:text-green-400">&times;{{ item.qty }}</span>
       </div>
-      <div v-else class="w-[88px]" />
-      <!-- combo component: qty is always 1, nothing to show here (keeps column alignment) -->
+      <div v-else :style="{ width: qtyColWidth }" />
+      <!-- combo component: qty is edited at the instance level from the
+           ComboCartGroup header, nothing to show here (keeps column alignment) -->
 
       <!-- Amount -->
       <div class="w-[72px] text-right shrink-0">
@@ -197,17 +216,21 @@ const availableModifierGroups = computed(() =>
 
       <!-- Delete (hidden for free items — managed by pricing rules — and
            for combo components, whose whole instance deletes together via
-           the ComboCartGroup header instead) -->
+           the ComboCartGroup header instead). Always visible on touch
+           devices — hover doesn't exist there, so gating visibility on
+           hover/selection would force a select-then-delete two-tap. -->
       <button
         v-if="!item.is_free_item && !isComboComponent"
         @click.stop="emit('remove', index)"
         aria-label="Remove item"
-        class="w-7 h-7 rounded-md flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-90 transition-all duration-150 opacity-0 group-hover:opacity-100"
-        :class="{ 'opacity-100': selected }"
+        class="rounded-md flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-90 transition-all duration-150"
+        :class="isTouchDevice
+          ? 'w-11 h-11'
+          : ['w-7 h-7 opacity-0 group-hover:opacity-100', { 'opacity-100': selected }]"
       >
-        <Trash2 :size="13" />
+        <Trash2 :size="isTouchDevice ? 17 : 13" />
       </button>
-      <div v-else class="w-7" />
+      <div v-else :style="{ width: deleteColWidth }" />
     </div>
 
     <!-- Separator line (ERPNext-style) -->

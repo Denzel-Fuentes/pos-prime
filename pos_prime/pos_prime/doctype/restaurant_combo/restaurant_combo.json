@@ -11,6 +11,10 @@
   "company",
   "currency",
   "combo_price",
+  "section_break_pricing",
+  "pricing_method",
+  "column_break_pricing",
+  "allow_negative_component",
   "section_break_1",
   "print_label",
   "sort_order",
@@ -61,6 +65,30 @@
    "label": "Combo Price",
    "options": "currency",
    "reqd": 1
+  },
+  {
+   "fieldname": "section_break_pricing",
+   "fieldtype": "Section Break",
+   "label": "Price Distribution"
+  },
+  {
+   "description": "How this combo's price is split across its components. Leave blank to use the default from Restaurant Settings. <b>Margen alto</b> and <b>Mixto</b> need at least one slot with a Discount Order below.",
+   "fieldname": "pricing_method",
+   "fieldtype": "Select",
+   "label": "Pricing Method",
+   "options": "\nProporcional\nMargen alto\nMixto"
+  },
+  {
+   "fieldname": "column_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.pricing_method!=\"Proporcional\"",
+   "description": "Only for Margen alto. Lets the last absorbing slot go below zero instead of passing the leftover discount on to the next slot — e.g. a 15.00 combo of 6 + 12 + 2 leaves the drink at -3.00, booked as a loss on the drink. Off means the discount cascades down, flooring each component at 0.00.",
+   "fieldname": "allow_negative_component",
+   "fieldtype": "Check",
+   "label": "Allow a Negative Component Price"
   },
   {
    "fieldname": "section_break_1",

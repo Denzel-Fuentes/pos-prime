@@ -2,6 +2,11 @@
 // Licensed under GPLv3. See license.txt
 
 frappe.query_reports["Ventas por Destino"] = {
+	onload(report) {
+		report.page.add_inner_message(
+			__("Órdenes, cantidad e ingresos por día, agrupados por destino (Mesa vs Para llevar).")
+		);
+	},
 	filters: [
 		{
 			fieldname: "from_date",

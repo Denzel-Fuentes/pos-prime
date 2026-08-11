@@ -12,10 +12,9 @@
  "name": "Ventas por Destino",
  "owner": "Administrator",
  "prepared_report": 0,
- "query": "select\n  ro.posting_date as \"Date:Date:100\",\n  roi.destination as \"Destination:Data:120\",\n  count(distinct ro.name) as \"Orders:Int:90\",\n  sum(roi.qty) as \"Qty:Float:90\",\n  sum(roi.amount) as \"Revenue:Currency:130\"\nfrom `tabRestaurant Order Item` roi\ninner join `tabRestaurant Order` ro on ro.name = roi.parent\nwhere ro.docstatus = 1\n  and (%(from_date)s is null or %(from_date)s = '' or ro.posting_date >= %(from_date)s)\n  and (%(to_date)s is null or %(to_date)s = '' or ro.posting_date <= %(to_date)s)\n  and (%(company)s is null or %(company)s = '' or ro.company = %(company)s)\ngroup by ro.posting_date, roi.destination\norder by ro.posting_date desc",
  "ref_doctype": "Restaurant Order",
  "report_name": "Ventas por Destino",
- "report_type": "Query Report",
+ "report_type": "Script Report",
  "roles": [
   {"role": "Accounts Manager"},
   {"role": "Accounts User"}

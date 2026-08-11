@@ -4,6 +4,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search } from 'lucide-vue-next'
+import { useRestaurantStore } from '@/stores/restaurant'
 
 const props = defineProps<{
   groups: string[]
@@ -17,8 +18,15 @@ const emit = defineEmits<{
 
 const SEARCH_THRESHOLD = 10
 const searchTerm = ref('')
+const restaurantStore = useRestaurantStore()
 
-const showSearch = computed(() => props.groups.length > SEARCH_THRESHOLD)
+// Restaurant Settings can suppress the box entirely (Hide Category Search,
+// on by default); outside restaurant mode nothing changes.
+const showSearch = computed(
+  () =>
+    props.groups.length > SEARCH_THRESHOLD &&
+    !(restaurantStore.enabled && restaurantStore.hideCategorySearch)
+)
 
 const filteredGroups = computed(() => {
   if (!searchTerm.value) return props.groups
@@ -53,7 +61,7 @@ const filteredGroups = computed(() => {
           v-for="group in filteredGroups"
           :key="group"
           @click="emit('select', group)"
-          class="w-full text-left px-3 py-1.5 text-xs rounded-lg transition-all duration-150"
+          class="w-full text-left px-3 py-1.5 lg:py-2 text-xs rounded-lg transition-all duration-150"
           :class="[
             selected === group
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-semibold'
@@ -69,7 +77,7 @@ const filteredGroups = computed(() => {
     </div>
   </div>
 
-  <!-- Mobile/tablet horizontal scroll -->
+  <!-- Mobile horizontal scroll (tablets and up use the sidebar) -->
   <div
     v-else
     class="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800"

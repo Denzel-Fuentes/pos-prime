@@ -107,15 +107,38 @@ def check_opening_entry(user=""):
         filters={"user": user, "docstatus": 1, "status": "Open"},
         fields=["name", "pos_profile", "company"],
     )
+    # Restaurant module: echo back today's dish selection (if any) so a
+    # resumed session can show it — the actual sell/hide enforcement lives
+    # server-side in pos_prime.api.items (get_items/search_barcode),
+    # independent of whatever the frontend does with this.
+    for entry in entries:
+        entry["available_items"] = [
+            r.item
+            for r in frappe.get_all(
+                "Restaurant Opening Entry Item",
+                filters={"parent": entry["name"]},
+                fields=["item"],
+            )
+        ]
     return entries
 
 
 @frappe.whitelist()
-def create_opening_entry(pos_profile, company, balance_details):
-    """Create a new POS Opening Entry."""
+def create_opening_entry(pos_profile, company, balance_details, available_items=None):
+    """Create a new POS Opening Entry.
+
+    available_items (restaurant module, optional) is a list of item codes
+    the cashier picked as available today, from the Item Groups configured
+    under Restaurant Settings' Daily Menu section. Anything that isn't
+    actually in one of those groups is silently dropped rather than
+    trusted blind — same precedent as create_restaurant_sale's modifier
+    handling.
+    """
     validate_pos_access(pos_profile)
     if isinstance(balance_details, str):
         balance_details = json.loads(balance_details)
+    if isinstance(available_items, str):
+        available_items = json.loads(available_items)
 
     doc = frappe.get_doc({
         "doctype": "POS Opening Entry",
@@ -129,6 +152,31 @@ def create_opening_entry(pos_profile, company, balance_details):
             "mode_of_payment": detail.get("mode_of_payment"),
             "opening_amount": detail.get("opening_amount", 0),
         })
+
+    if available_items:
+        gated_groups = set()
+        for group in frappe.get_all(
+            "Restaurant Daily Menu Item Group",
+            filters={"parent": "Restaurant Settings"},
+            fields=["item_group"],
+        ):
+            from pos_prime.api.items import _get_group_and_children
+
+            gated_groups.update(_get_group_and_children(group.item_group))
+
+        if gated_groups:
+            item_groups = dict(
+                frappe.get_all(
+                    "Item",
+                    filters={"item_code": ["in", available_items]},
+                    fields=["item_code", "item_group"],
+                    as_list=True,
+                )
+            )
+            for item_code in available_items:
+                if item_groups.get(item_code) in gated_groups:
+                    doc.append("pos_prime_available_items", {"item": item_code})
+
     doc.insert(ignore_permissions=True)
     doc.submit()
     return doc.as_dict()

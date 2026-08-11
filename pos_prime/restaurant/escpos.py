@@ -16,8 +16,16 @@ best-effort default (Epson's own numbering) and Restaurant Printer.
 escpos_codepage_id always overrides it when set.
 """
 
+import re
+
 _ESC = b"\x1b"
 _GS = b"\x1d"
+
+# Escapes understood by raw() — the same ones a Print Format's Raw Commands
+# field conventionally uses, so a layout typed in the Desk can emit control
+# bytes without needing them to survive the DB as literal control characters.
+_RAW_ESCAPE_RE = re.compile(r"\\x([0-9a-fA-F]{2})|\\([nrt\\])")
+_RAW_SIMPLE = {"n": b"\n", "r": b"\r", "t": b"\t", "\\": b"\\"}
 
 DEFAULT_CODEPAGE_IDS = {
 	"CP437": 0,
@@ -69,6 +77,24 @@ class EscposBuilder:
 		"""One line of plain text, newline-terminated."""
 		self._buf += self._encode(value)
 		self._buf += b"\n"
+		return self
+
+	def raw(self, value):
+		"""Append already-laid-out ticket text, as produced by a Print
+		Format's Raw Commands. Real control characters (what the template
+		helpers emit) pass through the codepage encoding untouched since
+		they're all ASCII; typed-out `\\x1b`-style escapes are decoded here
+		so both spellings work in a hand-written template."""
+		text = str(value)
+		pos = 0
+		for match in _RAW_ESCAPE_RE.finditer(text):
+			self._buf += self._encode(text[pos : match.start()])
+			if match.group(1) is not None:
+				self._buf += bytes([int(match.group(1), 16)])
+			else:
+				self._buf += _RAW_SIMPLE[match.group(2)]
+			pos = match.end()
+		self._buf += self._encode(text[pos:])
 		return self
 
 	def bold(self, value):

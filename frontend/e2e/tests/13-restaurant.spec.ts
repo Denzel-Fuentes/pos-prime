@@ -49,25 +49,22 @@ test.describe('Restaurant Module', () => {
     await posPage.waitForTimeout(200)
     await expect(destChip).not.toHaveText(before || '')
 
-    // Kitchen note.
-    const noteChip = row.locator('button[aria-label="Kitchen note"]')
-    await noteChip.click()
-    const noteDialog = posPage.locator('[role="dialog"][aria-label="Kitchen note"]')
-    await expect(noteDialog).toBeVisible({ timeout: 5000 })
-    await noteDialog.locator('textarea').fill('sin cebolla e2e')
-    await noteDialog.locator('button').last().click() // Save is the dialog's last button
-    await expect(noteDialog).toBeHidden({ timeout: 5000 })
-    await expect(noteChip).toContainText('sin cebolla e2e')
-
-    // Modifiers — only if this site has one configured for this item.
+    // Notes and modifiers are unified behind one "Modifiers" button/dialog
+    // — the dialog carries a manual text box alongside any predefined
+    // modifier chips for this item.
     const modChip = row.locator('button[aria-label="Modifiers"]')
-    if (restaurantData.modifierLabel && (await modChip.isVisible().catch(() => false))) {
-      await modChip.click()
-      const modDialog = posPage.locator('[role="dialog"][aria-label="Modifiers"]')
-      await expect(modDialog).toBeVisible({ timeout: 5000 })
+    await expect(modChip).toBeVisible()
+    await modChip.click()
+    const modDialog = posPage.locator('[role="dialog"][aria-label="Modifiers"]')
+    await expect(modDialog).toBeVisible({ timeout: 5000 })
+    await modDialog.locator('textarea').fill('sin cebolla e2e')
+    if (restaurantData.modifierLabel) {
       await modDialog.locator(`button:has-text("${restaurantData.modifierLabel}")`).first().click()
-      await modDialog.locator('button').last().click() // Done is the dialog's last button
-      await expect(modDialog).toBeHidden({ timeout: 5000 })
+    }
+    await modDialog.locator('button').last().click() // Done is the dialog's last button
+    await expect(modDialog).toBeHidden({ timeout: 5000 })
+    await expect(modChip).toContainText('sin cebolla e2e')
+    if (restaurantData.modifierLabel) {
       await expect(modChip).toContainText(restaurantData.modifierLabel)
     }
 
@@ -79,12 +76,10 @@ test.describe('Restaurant Module', () => {
     await posPage.waitForTimeout(1500)
 
     const resumedRow = posPage.locator('[role="listitem"]').last()
-    await expect(resumedRow.locator('button[aria-label="Kitchen note"]')).toContainText('sin cebolla e2e')
+    const resumedModChip = resumedRow.locator('button[aria-label="Modifiers"]')
+    await expect(resumedModChip).toContainText('sin cebolla e2e')
     if (restaurantData.modifierLabel) {
-      const resumedModChip = resumedRow.locator('button[aria-label="Modifiers"]')
-      if (await resumedModChip.isVisible().catch(() => false)) {
-        await expect(resumedModChip).toContainText(restaurantData.modifierLabel)
-      }
+      await expect(resumedModChip).toContainText(restaurantData.modifierLabel)
     }
   })
 

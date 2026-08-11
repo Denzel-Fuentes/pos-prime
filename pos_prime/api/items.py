@@ -42,6 +42,14 @@ def get_items(
 
     should_hide = hide_unavailable if hide_unavailable is not None else profile_hide
 
+    # ── Daily menu gate (restaurant module) ────────────────────────────
+    # Lazy import: keeps this base API restaurant-agnostic when the
+    # feature is off, and avoids a circular import (restaurant.py already
+    # imports _get_group_and_children from this module).
+    from pos_prime.restaurant.daily_menu import get_daily_menu_gate
+
+    daily_gate = get_daily_menu_gate(pos_profile) if pos_profile else None
+
     # ── Build item group filter ──────────────────────────────────────
     group_filter_list = None
 
@@ -54,7 +62,16 @@ def get_items(
         group_filter_list = list(all_groups) if all_groups else None
 
     # ── Build SQL query ──────────────────────────────────────────────
-    conditions = ["i.disabled = 0", "i.is_sales_item = 1", "i.has_variants = 0", "i.is_fixed_asset = 0"]
+    # Templates (has_variants=1) are listed instead of their variants —
+    # the POS shows one card per template and resolves the concrete
+    # variant via get_item_variants when it's clicked. Bare variants
+    # (variant_of set) are excluded here so they never show up loose.
+    conditions = [
+        "i.disabled = 0",
+        "i.is_sales_item = 1",
+        "(i.has_variants = 1 OR IFNULL(i.variant_of, '') = '')",
+        "i.is_fixed_asset = 0",
+    ]
     values = {}
 
     if group_filter_list:
@@ -66,6 +83,19 @@ def get_items(
             "(i.item_name LIKE %(search)s OR i.item_code LIKE %(search)s OR i.description LIKE %(search)s)"
         )
         values["search"] = f"%{search_term}%"
+
+    if daily_gate:
+        gated_groups, allowed_items = daily_gate
+        if allowed_items:
+            conditions.append(
+                "NOT (i.item_group IN %(gated_groups)s AND i.item_code NOT IN %(allowed_items)s)"
+            )
+            values["allowed_items"] = list(allowed_items)
+        else:
+            # Nothing picked yet today — every item in a gated group is
+            # unavailable until the cashier selects some.
+            conditions.append("i.item_group NOT IN %(gated_groups)s")
+        values["gated_groups"] = list(gated_groups)
 
     if should_hide and warehouse:
         # JOIN with Bin and subtract POS-reserved qty (submitted but
@@ -83,8 +113,11 @@ def get_items(
             "  GROUP BY pi_item.item_code"
             ") pos_res ON pos_res.item_code = i.item_code"
         )
+        # Templates have no Bin entry of their own — stock lives on their
+        # variants — so they're never hidden by this check.
         conditions.append(
-            "(i.is_stock_item = 0 OR (IFNULL(b.actual_qty, 0) - IFNULL(pos_res.reserved_qty, 0)) > 0)"
+            "(i.has_variants = 1 OR i.is_stock_item = 0 "
+            "OR (IFNULL(b.actual_qty, 0) - IFNULL(pos_res.reserved_qty, 0)) > 0)"
         )
         values["warehouse"] = warehouse
     else:
@@ -97,7 +130,8 @@ def get_items(
         SELECT
             i.item_code, i.item_name, i.description, i.item_group,
             i.stock_uom, i.image, i.has_batch_no, i.has_serial_no,
-            i.is_stock_item, i.brand, i.weight_per_unit, i.weight_uom
+            i.is_stock_item, i.brand, i.weight_per_unit, i.weight_uom,
+            i.has_variants, i.variant_of
         FROM `tabItem` i
         {join_clause}
         WHERE {where}
@@ -108,8 +142,15 @@ def get_items(
         as_dict=True,
     )
 
+    return {"items": _enrich_items(items, price_list, warehouse)}
+
+
+def _enrich_items(items, price_list, warehouse):
+    """Attach rate/stock/barcodes/tax template/bundle flag to raw `tabItem`
+    rows. Shared by get_items and get_item_variants so both return the
+    same shape the frontend's Item type expects."""
     if not items:
-        return {"items": []}
+        return []
 
     item_codes = [item.item_code for item in items]
 
@@ -189,7 +230,6 @@ def get_items(
         reserved = {r.item_code: r.qty or 0 for r in reserved_data}
 
     # ── Detect Product Bundles ────────────────────────────────────────
-    bundle_set = set()
     bundle_rows = frappe.get_all(
         "Product Bundle",
         filters={"disabled": 0, "new_item_code": ["in", item_codes]},
@@ -205,6 +245,8 @@ def get_items(
         item["barcodes"] = barcodes.get(item.item_code, [])
         item["barcode"] = item["barcodes"][0] if item["barcodes"] else None
         item["item_tax_template"] = tax_templates.get(item.item_code)
+        item["has_variants"] = bool(item.get("has_variants"))
+        item["variant_of"] = item.get("variant_of") or None
 
         if item.item_code in bundle_set:
             item["is_product_bundle"] = True
@@ -214,7 +256,53 @@ def get_items(
             actual = stock.get(item.item_code, 0)
             item["actual_qty"] = max(actual - reserved.get(item.item_code, 0), 0)
 
-    return {"items": items}
+    return items
+
+
+@frappe.whitelist()
+def get_item_variants(template_item_code, pos_profile=""):
+    """Get the sellable variants of a template item (has_variants=1), for
+    the variant picker shown when a template card is clicked in the POS."""
+    validate_pos_access(pos_profile or None)
+
+    price_list = "Standard Selling"
+    warehouse = ""
+    if pos_profile:
+        profile = frappe.get_doc("POS Profile", pos_profile)
+        price_list = profile.selling_price_list or "Standard Selling"
+        warehouse = profile.warehouse or ""
+
+    items = frappe.db.sql(
+        """
+        SELECT
+            i.item_code, i.item_name, i.description, i.item_group,
+            i.stock_uom, i.image, i.has_batch_no, i.has_serial_no,
+            i.is_stock_item, i.brand, i.weight_per_unit, i.weight_uom,
+            i.has_variants, i.variant_of
+        FROM `tabItem` i
+        WHERE i.variant_of = %(template_item_code)s
+          AND i.disabled = 0
+          AND i.is_sales_item = 1
+        ORDER BY i.item_name ASC
+        """,
+        {"template_item_code": template_item_code},
+        as_dict=True,
+    )
+
+    # Daily menu gate (restaurant module) — same rule as get_items: a
+    # variant in a gated group not picked for today isn't offered either.
+    from pos_prime.restaurant.daily_menu import get_daily_menu_gate
+
+    daily_gate = get_daily_menu_gate(pos_profile) if pos_profile else None
+    if daily_gate:
+        gated_groups, allowed_items = daily_gate
+        items = [
+            item
+            for item in items
+            if item.item_group not in gated_groups or item.item_code in allowed_items
+        ]
+
+    return {"items": _enrich_items(items, price_list, warehouse)}
 
 
 def _get_group_and_children(item_group):
@@ -340,6 +428,17 @@ def search_barcode(search_value, pos_profile=""):
 
     if not result:
         return None
+
+    # Daily menu gate (restaurant module) — same rule as get_items: a
+    # gated-group item not picked for today doesn't exist as far as the
+    # POS is concerned, barcode scan included.
+    from pos_prime.restaurant.daily_menu import get_daily_menu_gate
+
+    daily_gate = get_daily_menu_gate(pos_profile) if pos_profile else None
+    if daily_gate:
+        gated_groups, allowed_items = daily_gate
+        if result["item_group"] in gated_groups and result["item_code"] not in allowed_items:
+            return None
 
     # Fetch rate from POS Profile's selling price list
     price_list = "Standard Selling"

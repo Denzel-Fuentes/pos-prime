@@ -7,13 +7,37 @@
   "enable_restaurant_mode",
   "default_destination",
   "combo_strip_label",
+  "section_break_cart_options",
+  "disable_coupon_code",
+  "disable_more_options",
+  "hide_category_search",
+  "section_break_combo_pricing",
+  "default_combo_pricing_method",
+  "section_break_daily_menu",
+  "daily_menu_item_groups",
   "section_break_comanda",
   "print_comanda_on_payment",
   "comanda_background_job",
   "fail_silently",
   "column_break_comanda",
   "label_dine_in",
-  "label_takeaway"
+  "label_takeaway",
+  "section_break_comanda_content",
+  "comanda_show_order_no",
+  "comanda_show_time",
+  "column_break_comanda_content",
+  "comanda_show_customer",
+  "comanda_show_modifiers",
+  "section_break_receipt",
+  "print_receipt_on_payment",
+  "column_break_receipt",
+  "receipt_footer",
+  "section_break_receipt_content",
+  "receipt_show_invoice_info",
+  "receipt_show_customer",
+  "column_break_receipt_content",
+  "receipt_show_taxes",
+  "receipt_show_payments"
  ],
  "fields": [
   {
@@ -34,6 +58,57 @@
    "fieldname": "combo_strip_label",
    "fieldtype": "Data",
    "label": "Combo Strip Label"
+  },
+  {
+   "fieldname": "section_break_cart_options",
+   "fieldtype": "Section Break",
+   "label": "Cart Options"
+  },
+  {
+   "default": "0",
+   "description": "Hides the coupon code field from the cart in restaurant mode.",
+   "fieldname": "disable_coupon_code",
+   "fieldtype": "Check",
+   "label": "Disable Coupon Code"
+  },
+  {
+   "default": "0",
+   "description": "Hides the \"More Options\" section from the cart in restaurant mode.",
+   "fieldname": "disable_more_options",
+   "fieldtype": "Check",
+   "label": "Disable More Options"
+  },
+  {
+   "default": "1",
+   "description": "Hides the search box above the category (Item Group) list in the item grid while restaurant mode is on. Hidden by default — a restaurant menu usually has few enough categories that the box only takes up space.",
+   "fieldname": "hide_category_search",
+   "fieldtype": "Check",
+   "label": "Hide Category Search"
+  },
+  {
+   "fieldname": "section_break_combo_pricing",
+   "fieldtype": "Section Break",
+   "label": "Combo Pricing"
+  },
+  {
+   "default": "Proporcional",
+   "description": "How a combo's fixed price is split across its components. <b>Proporcional</b>: every component drops by the same percentage. <b>Margen alto</b>: components keep their list price and the slots marked with a Discount Order absorb the whole discount. <b>Mixto</b>: protected slots keep their list price and the rest is split proportionally among the absorbing ones. Each Restaurant Combo can override this.",
+   "fieldname": "default_combo_pricing_method",
+   "fieldtype": "Select",
+   "label": "Default Combo Pricing Method",
+   "options": "Proporcional\nMargen alto\nMixto"
+  },
+  {
+   "fieldname": "section_break_daily_menu",
+   "fieldtype": "Section Break",
+   "label": "Daily Menu"
+  },
+  {
+   "description": "Item Groups whose dishes must be explicitly enabled at shift-open time before they can be sold that day (e.g. Segundos, Sopas, Refrescos). Groups not listed here are always fully available, as before.",
+   "fieldname": "daily_menu_item_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Item Groups Requiring Daily Selection",
+   "options": "Restaurant Daily Menu Item Group"
   },
   {
    "fieldname": "section_break_comanda",
@@ -75,6 +150,102 @@
    "fieldname": "label_takeaway",
    "fieldtype": "Data",
    "label": "Takeaway Label (on ticket)"
+  },
+  {
+   "fieldname": "section_break_comanda_content",
+   "fieldtype": "Section Break",
+   "label": "Kitchen Ticket Content"
+  },
+  {
+   "default": "1",
+   "description": "Prints the POS Invoice number at the top of the kitchen ticket.",
+   "fieldname": "comanda_show_order_no",
+   "fieldtype": "Check",
+   "label": "Show Order Number"
+  },
+  {
+   "default": "1",
+   "description": "Prints the time the ticket was sent to the kitchen.",
+   "fieldname": "comanda_show_time",
+   "fieldtype": "Check",
+   "label": "Show Time"
+  },
+  {
+   "fieldname": "column_break_comanda_content",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Prints the customer's name under the header — useful for takeaway orders called out by name.",
+   "fieldname": "comanda_show_customer",
+   "fieldtype": "Check",
+   "label": "Show Customer"
+  },
+  {
+   "default": "1",
+   "description": "Prints each line's free modifiers (e.g. sin cebolla). Kitchen notes are always printed.",
+   "fieldname": "comanda_show_modifiers",
+   "fieldtype": "Check",
+   "label": "Show Modifiers"
+  },
+  {
+   "fieldname": "section_break_receipt",
+   "fieldtype": "Section Break",
+   "label": "Recibo de Caja"
+  },
+  {
+   "default": "1",
+   "description": "Print the till receipt to any configured Recibo (Caja) Restaurant Printer as soon as a sale completes. Uses the same background-job / never-block-checkout settings as the Kitchen Ticket above.",
+   "fieldname": "print_receipt_on_payment",
+   "fieldtype": "Check",
+   "label": "Print Receipt on Payment"
+  },
+  {
+   "fieldname": "column_break_receipt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Gracias por su compra",
+   "fieldname": "receipt_footer",
+   "fieldtype": "Data",
+   "label": "Receipt Footer"
+  },
+  {
+   "fieldname": "section_break_receipt_content",
+   "fieldtype": "Section Break",
+   "label": "Receipt Content"
+  },
+  {
+   "default": "1",
+   "description": "Prints the invoice number and the date/time under the company name.",
+   "fieldname": "receipt_show_invoice_info",
+   "fieldtype": "Check",
+   "label": "Show Invoice Number and Date"
+  },
+  {
+   "default": "1",
+   "description": "Prints the customer's name (walk-in customers are never printed).",
+   "fieldname": "receipt_show_customer",
+   "fieldtype": "Check",
+   "label": "Show Customer"
+  },
+  {
+   "fieldname": "column_break_receipt_content",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Prints the tax breakdown line by line before the total. The total itself is always printed.",
+   "fieldname": "receipt_show_taxes",
+   "fieldtype": "Check",
+   "label": "Show Tax Breakdown"
+  },
+  {
+   "default": "1",
+   "description": "Prints the payment modes with their amounts and the change given.",
+   "fieldname": "receipt_show_payments",
+   "fieldtype": "Check",
+   "label": "Show Payments and Change"
   }
  ],
  "icon": "restaurant",

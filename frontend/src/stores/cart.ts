@@ -168,10 +168,10 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function updateQty(index: number, qty: number, availableQty?: number, validateStock = true): string | null {
-    // Combo component quantities are fixed at 1 by the price-distribution
-    // algorithm (see pos_prime/restaurant/pricing.py) — qty > 1 would
-    // reintroduce rounding error and break "amount sums to combo_price".
-    // Two of the same combo are two instances, not one line at qty=2.
+    // Per-line qty edits are refused for combo components — quantity
+    // changes apply at the instance level instead (see
+    // updateComboInstanceQty), so every component of the combo scales
+    // together and "sum of amounts == qty * combo_price" keeps holding.
     if (items.value[index]?.combo_uid) return null
     if (qty <= 0) {
       removeItem(index)
@@ -225,15 +225,65 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   /** Per-line destination toggle. Refuses on combo components — a
-   * combo instance's destination is set once, for all its lines
-   * together, via restaurantStore.addComboToCart / ComboCartGroup. */
+   * combo instance's destination changes for all its lines together,
+   * via updateComboInstanceDestination. */
   function updateItemDestination(index: number, destination: RestaurantDestination) {
     if (items.value[index]?.combo_uid) return
     items.value[index].destination = destination
   }
 
+  /** Instance-wide qty, driven by the "+"/"-" controls on a combo's cart
+   * group header. Every component line scales by the same factor — combo
+   * pricing distributes a single "per one" rate across components (see
+   * pos_prime/restaurant/pricing.py), so multiplying every line's qty
+   * together keeps "sum of amounts == qty * combo_price" holding. */
+  function updateComboInstanceQty(comboUid: string, qty: number) {
+    if (qty <= 0) {
+      removeComboInstance(comboUid)
+      return
+    }
+    items.value.forEach((item, index) => {
+      if (item.combo_uid === comboUid) {
+        item.qty = qty
+        recalcItemAmount(index)
+      }
+    })
+    debounceTaxCalculation()
+  }
+
+  /** Instance-wide destination — mirrors updateComboInstanceQty. A combo's
+   * destination is edited once, from its cart group header, and applies to
+   * every one of its component lines together. */
+  function updateComboInstanceDestination(comboUid: string, destination: RestaurantDestination) {
+    for (const item of items.value) {
+      if (item.combo_uid === comboUid) item.destination = destination
+    }
+  }
+
+  /** Bulk override driven by the header Mesa/Para llevar switch — unlike
+   * the per-line/per-instance toggles, this rewrites every existing cart
+   * line (regular items and every combo component) rather than only
+   * seeding the default for lines added afterwards (see
+   * restaurantStore.defaultDestination for that). */
+  function setAllItemsDestination(destination: RestaurantDestination) {
+    for (const item of items.value) {
+      if (!item.is_free_item) item.destination = destination
+    }
+  }
+
   function updateItemNotes(index: number, notes: string) {
     items.value[index].notes = notes.trim() || null
+  }
+
+  /** Instance-wide combo note. Written onto every line of the instance
+   * (mirroring removeComboInstance's combo_uid sweep) so it round-trips
+   * regardless of which line's combo_notes the server or a resumed draft
+   * happens to read — see pos_prime/api/restaurant.py's combo_meta. */
+  function updateComboNotes(comboUid: string, notes: string) {
+    const trimmed = notes.trim() || null
+    for (const item of items.value) {
+      if (item.combo_uid === comboUid) item.combo_notes = trimmed
+    }
   }
 
   function updateItemModifiers(index: number, modifiers: { modifier: string; label: string }[]) {
@@ -500,7 +550,11 @@ export const useCartStore = defineStore('cart', () => {
     updateItemBatchSerial,
     updateItemUom,
     updateItemDestination,
+    updateComboInstanceQty,
+    updateComboInstanceDestination,
+    setAllItemsDestination,
     updateItemNotes,
+    updateComboNotes,
     updateItemModifiers,
     removeItem,
     selectItem,

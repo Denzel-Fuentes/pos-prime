@@ -2,7 +2,7 @@
 <!-- Licensed under GPLv3. See license.txt -->
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePosSessionStore } from '@/stores/posSession'
 import { useSettingsStore } from '@/stores/settings'
@@ -17,6 +17,7 @@ import { useBroadcastDisplay, type DisplayMessage } from '@/composables/useBroad
 import { call } from 'frappe-ui'
 import { useSerialDisplay } from '@/composables/useSerialDisplay'
 import { useDeskMode } from '@/composables/useDeskMode'
+import { useTouchDevice } from '@/composables/useTouchDevice'
 import { toPayloadItem, toDisplayItem, fromInvoiceItem } from '@/utils/cartPayload'
 import AppShell from '@/components/layout/AppShell.vue'
 import ItemGrid from '@/components/items/ItemGrid.vue'
@@ -25,7 +26,7 @@ import PaymentDialog from '@/components/payment/PaymentDialog.vue'
 import ReceiptPreview from '@/components/receipt/ReceiptPreview.vue'
 import HeldOrdersDrawer from '@/components/orders/HeldOrdersDrawer.vue'
 import ReturnSearchDialog from '@/components/orders/ReturnSearchDialog.vue'
-import { LayoutGrid, ShoppingCart } from 'lucide-vue-next'
+import { LayoutGrid, ShoppingCart, PauseCircle, Menu, X } from 'lucide-vue-next'
 
 const router = useRouter()
 const sessionStore = usePosSessionStore()
@@ -41,17 +42,27 @@ const restaurantStore = useRestaurantStore()
 const { sendUpdate: sendDisplayUpdate, onUpdate: onDisplayMessage, close: closeDisplay } = useBroadcastDisplay(sessionStore.openingEntry || undefined)
 const serialDisplay = useSerialDisplay()
 const { isDeskMode } = useDeskMode()
+const { isTouchDevice } = useTouchDevice()
 
 const mobileTab = ref<'items' | 'cart'>('items')
 const showReceipt = ref(false)
 const showHeldOrders = ref(false)
 const showReturnDialog = ref(false)
+// Mobile-only AppShell drawer, opened from the button placed next to the
+// customer search bar in Cart.vue (see the header-actions slot below).
+const sidebarOpen = ref(false)
+const draftCount = computed(() => draftsStore.drafts.length)
 
 // Resizable cart panel (percentage-based, persisted)
 const CART_MIN_PCT = 25
 const CART_MAX_PCT = 50
 const CART_DEFAULT_PCT = 40  // ERPNext default: 4/10 = 40%
-const cartPct = ref(parseInt(localStorage.getItem('pos_cart_pct') || '') || CART_DEFAULT_PCT)
+// On a landscape tablet with no saved preference yet, seed a narrower cart
+// so the item grid gets more room out of the box — a returning user's own
+// drag adjustment (persisted below) always wins over this.
+const isTabletWidth = window.innerWidth >= 1024 && window.innerWidth <= 1200
+const cartPctDefault = isTabletWidth ? 35 : CART_DEFAULT_PCT
+const cartPct = ref(parseInt(localStorage.getItem('pos_cart_pct') || '') || cartPctDefault)
 
 function onResizeStart(e: PointerEvent) {
   const target = e.currentTarget as HTMLElement
@@ -410,7 +421,7 @@ function onReturnCompleted() {
     <div class="text-gray-400 dark:text-gray-500 text-sm">{{ __('Loading POS...') }}</div>
   </div>
 
-  <AppShell v-else @toggle-held-orders="showHeldOrders = !showHeldOrders" @toggle-return="showReturnDialog = true">
+  <AppShell v-else hide-mobile-header v-model:sidebar-open="sidebarOpen" @toggle-held-orders="showHeldOrders = !showHeldOrders" @toggle-return="showReturnDialog = true">
     <!-- ERPNext-style layout with resizable panels -->
     <div class="pos-layout flex h-full overflow-hidden" style="gap: var(--margin-md, 8px); padding: 0.5%;">
       <!-- Items panel -->
@@ -422,10 +433,11 @@ function onReturnCompleted() {
         <ItemGrid />
       </div>
 
-      <!-- Resize handle -->
+      <!-- Resize handle (wider hit area on touch — dragging a 6px bar with a
+           finger is much less precise than with a mouse) -->
       <div
         class="hidden sm:flex items-center justify-center cursor-col-resize shrink-0 group select-none"
-        style="width: 6px;"
+        :style="{ width: isTouchDevice ? '28px' : '6px' }"
         @pointerdown.prevent="onResizeStart"
       >
         <div class="w-1 h-8 rounded-full bg-gray-200 dark:bg-gray-700 group-hover:bg-blue-400 group-active:bg-blue-500 transition-colors" />
@@ -437,7 +449,31 @@ function onReturnCompleted() {
         :class="{ 'hidden sm:flex': mobileTab === 'items' }"
         :style="{ flex: `${cartPct} 1 0%` }"
       >
-        <Cart @hold-order="holdOrder" />
+        <Cart @hold-order="holdOrder">
+          <template #header-actions>
+            <button
+              @click="showHeldOrders = !showHeldOrders"
+              aria-label="Held Orders"
+              class="relative w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            >
+              <PauseCircle :size="16" />
+              <span
+                v-if="draftCount > 0"
+                class="absolute top-0.5 end-0.5 bg-amber-500 text-white text-[7px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
+              >
+                {{ draftCount }}
+              </span>
+            </button>
+            <button
+              @click="sidebarOpen = !sidebarOpen"
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle menu"
+            >
+              <Menu v-if="!sidebarOpen" :size="16" />
+              <X v-else :size="16" />
+            </button>
+          </template>
+        </Cart>
       </div>
     </div>
 

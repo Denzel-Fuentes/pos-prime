@@ -9,7 +9,8 @@
   "item_group",
   "include_child_groups",
   "default_item",
-  "allow_modifiers"
+  "allow_modifiers",
+  "discount_order"
  ],
  "fields": [
   {
@@ -44,6 +45,14 @@
    "fieldname": "allow_modifiers",
    "fieldtype": "Check",
    "label": "Allow Modifiers"
+  },
+  {
+   "default": "0",
+   "description": "Only used by the Margen alto and Mixto pricing methods. 1 absorbs the combo's discount first, 2 next, and so on. Leave at 0 to protect this slot's list price — it only gives anything up if the absorbing slots couldn't cover the whole discount.",
+   "fieldname": "discount_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Discount Order"
   }
  ],
  "index_web_pages_for_search": 1,

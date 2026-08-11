@@ -2,6 +2,11 @@
 // Licensed under GPLv3. See license.txt
 
 frappe.query_reports["Combos Vendidos"] = {
+	onload(report) {
+		report.page.add_inner_message(
+			__("Cuántas instancias de cada combo se vendieron, y sus ingresos, en el período elegido.")
+		);
+	},
 	filters: [
 		{
 			fieldname: "period",

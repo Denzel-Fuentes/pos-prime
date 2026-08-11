@@ -1,22 +1,26 @@
+// Kept so on_page_show can re-apply the page-head hiding without reaching
+// across the whole Desk (other pages have a .page-head they still need).
+var posWrapper = null;
+
 frappe.pages['pos-terminal'].on_page_load = function(wrapper) {
+	posWrapper = wrapper;
+
 	frappe.ui.make_app_page({
 		parent: wrapper,
-		title: __('POS Terminal'),
+		// No title: the page-head is hidden below, but on some Desk versions
+		// the title still leaks into the navbar/breadcrumb area next to the
+		// POS profile indicator ("POS Terminal <profile>").
+		title: '',
 		single_column: true,
 	});
-
-	// Store page reference for Vue app to update indicator
-	var page = wrapper.page;
 
 	// Breadcrumbs: POS Prime > POS Terminal
 	frappe.breadcrumbs.add('POS Prime', 'pos-terminal');
 
-	// Left-align the page-head content (remove .container centering)
-	$(wrapper).find('.page-head > .container').css({
-		'max-width': '100%',
-		'padding-left': '1rem',
-		'padding-right': '1rem'
-	});
+	// Hide the page-head bar (title/indicator/breadcrumbs) entirely — the
+	// Vue app is a full-screen kiosk UI and doesn't need it. The persistent
+	// Desk navbar above it is left untouched.
+	hidePageHead(wrapper);
 
 	// Match navbar width: remove .container max-width, use navbar's 1rem padding
 	var fullWidth = 'max-width:100%!important;width:100%!important;margin:0!important;padding-left:1rem!important;padding-right:1rem!important;';
@@ -34,19 +38,6 @@ frappe.pages['pos-terminal'].on_page_load = function(wrapper) {
 	// v14/v15: aside.desk-sidebar   v16: .body-sidebar-container
 	$('aside.desk-sidebar, .desk-sidebar, .body-sidebar-container').hide();
 
-	// Global callback for Vue app to show the opened POS profile
-	window.posPageSetProfile = function(profileName) {
-		if (page && profileName) {
-			page.set_indicator(profileName, 'blue');
-		}
-	};
-	// Clear indicator when shift closes
-	window.posPageClearProfile = function() {
-		if (page) {
-			page.clear_indicator();
-		}
-	};
-
 	// Size it to fill remaining viewport
 	setTimeout(sizePosApp, 0);
 	window.addEventListener('resize', sizePosApp);
@@ -62,6 +53,7 @@ frappe.pages['pos-terminal'].on_page_load = function(wrapper) {
 frappe.pages['pos-terminal'].on_page_show = function() {
 	// Re-hide sidebar when returning to this page
 	$('aside.desk-sidebar, .desk-sidebar, .body-sidebar-container').hide();
+	hidePageHead(posWrapper);
 	sizePosApp();
 	window.addEventListener('resize', sizePosApp);
 };
@@ -71,6 +63,26 @@ frappe.pages['pos-terminal'].on_page_hide = function() {
 	// Restore sidebar when navigating away
 	$('aside.desk-sidebar, .desk-sidebar, .body-sidebar-container').show();
 };
+
+// Hides the page title / indicator bar of this page only. A plain .hide()
+// isn't enough: Desk re-shows .page-head on its own (route changes, the
+// sticky-header observer), which left an empty ~55px strip where the title
+// used to be. A stylesheet rule scoped to this page's container wins over
+// whatever inline display Desk sets, and never touches other pages.
+function hidePageHead(wrapper) {
+	var id = (wrapper && wrapper.id) || 'page-pos-terminal';
+	if (!document.getElementById('pos-prime-page-head-style')) {
+		$('<style id="pos-prime-page-head-style"></style>')
+			.text(
+				'#' + id + ' .page-head{display:none!important;}' +
+				'#' + id + ' .page-body{padding-top:0!important;margin-top:0!important;}'
+			)
+			.appendTo(document.head);
+	}
+	if (wrapper) {
+		$(wrapper).find('.page-head').hide();
+	}
+}
 
 function sizePosApp() {
 	var el = document.getElementById('pos-prime-app');
@@ -82,7 +94,12 @@ function sizePosApp() {
 
 async function load_pos_prime_assets() {
 	try {
-		var manifestRes = await fetch('/assets/pos_prime/frontend/.vite/manifest.json');
+		// cache: 'no-store' — this URL has no content hash (unlike the JS/CSS
+		// chunks it points to), so the browser's default HTTP cache would
+		// otherwise keep resolving to whatever build was live the first time
+		// this fetch ran, silently serving stale code after every later
+		// `yarn build` until that cache entry expired or was manually cleared.
+		var manifestRes = await fetch('/assets/pos_prime/frontend/.vite/manifest.json', { cache: 'no-store' });
 		if (!manifestRes.ok) {
 			throw new Error('Manifest not found (HTTP ' + manifestRes.status + ')');
 		}
