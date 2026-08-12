@@ -11,8 +11,13 @@ build/
 node_modules/
 frontend/node_modules/
 
-# Vite build output (generated files, content-hashed filenames on every build)
-pos_prime/public/frontend/
+# Vite build output. Committed on purpose: `bench build` doesn't run vite on
+# frontend/, and a managed host (Frappe Cloud and friends) deploys straight
+# from this repo with no shell to build in — so the SPA has to ship prebuilt
+# or the POS page loads to "Failed to load POS Prime". Rebuild with
+# `yarn build` and commit the result whenever frontend/src changes.
+# Source maps stay out: 6 MB of the 8 MB build, and useless in production.
+pos_prime/public/frontend/**/*.map
 
 # Environment
 .env

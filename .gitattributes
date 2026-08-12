@@ -1,0 +1,5 @@
+# Vite build output is committed (see .gitignore) and must land on the server
+# byte-for-byte as vite wrote it. Without this, a Windows checkout with
+# core.autocrlf=true rewrites every line ending on checkout and the assets
+# show up as modified right after a fresh clone.
+pos_prime/public/frontend/** -text
