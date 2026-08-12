@@ -327,7 +327,9 @@ kitchen notes, free modifiers, fixed-price combos, ESC/POS kitchen ticket and ti
 printing, daily dish availability and combo-aware reports. It ships disabled — sites that
 never turn it on see no behavior change.
 
-📖 **[Guía de uso del módulo restaurante](docs/restaurant-module.md)** (Spanish)
+📖 Docs (Spanish):
+- **[Guía de uso del módulo restaurante](docs/restaurant-module.md)** — setup, daily POS use, printing, reports
+- **[Cómo se modelan los productos](docs/catalogo-productos-y-combos.md)** — item groups, variants and combos
 
 ### Kiosk Mode
 

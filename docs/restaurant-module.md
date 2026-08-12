@@ -10,6 +10,10 @@ Mode` en off, POS Prime se comporta exactamente como el POS normal: ni un botón
 > Las etiquetas entre comillas son las que verás en el Desk de ERPNext, que está en inglés.
 > Los valores de los campos (Mesa, Para llevar, Margen alto…) sí están en español.
 
+Para cómo se organiza el catálogo detrás de todo esto — grupos de artículos, variantes de
+un plato, qué modelar como ítem, variante o modificador — ver
+**[Cómo se modelan los productos](catalogo-productos-y-combos.md)**.
+
 ---
 
 ## 1. Activar el módulo
