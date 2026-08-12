@@ -157,8 +157,32 @@ automática: los tickets quedan en `Not Required` y solo queda el botón manual 
 
 > **Ojo con Puente Android**: es de ida y sin confirmación. El estado `Printed` significa
 > "el trabajo se envió al teléfono", no "salió el papel". Si la app puente no está
-> corriendo con ese usuario, el ticket se pierde en silencio. Con `TCP Directo` sí obtienes
-> un error real cuando la impresora no responde.
+> corriendo con ese usuario, el ticket se pierde en silencio. Con `TCP Directo` al menos te
+> enteras cuando no se pudo conectar con la impresora.
+
+#### Qué prueba (y qué no) cada modo
+
+Ninguno de los dos confirma que salió el papel. Una impresora térmica en el puerto 9100
+nunca contesta: solo recibe. Con `TCP Directo`, que el envío no falle significa que la
+impresora aceptó los bytes — sin papel, con la tapa abierta o atascada, el ticket igual
+queda en `Printed`. Lo que sí detecta ese modo es el fallo de conexión: IP equivocada,
+equipo apagado, puerto cerrado o timeout.
+
+#### Seguridad de la conexión
+
+**El puerto 9100 no tiene autenticación de ningún tipo**: ni usuario, ni contraseña, ni
+cifrado. Es parte del protocolo RAW, no una omisión de esta app. Cualquiera que alcance esa
+IP y ese puerto en la red puede imprimir en tu cocina. La protección es la red, no el
+protocolo:
+
+- **Nunca abras el 9100 a internet** ni le hagas port-forward en el router. Si Frappe está
+  en la nube, usa `Puente Android` en vez de exponer la impresora: para eso existe.
+- Ponle IP fija a la impresora (una IP que cambie por DHCP rompe la impresión) y, si
+  puedes, déjala en una red separada de la de los clientes.
+
+El tramo del puente sí va autenticado y cifrado: viaja por el canal de tiempo real de
+Frappe (`wss://`), acotado a las sesiones del `Bridge User`. El tramo sin autenticar es el
+último, teléfono → impresora, igual que en TCP Directo.
 
 ### 2.6 Formatos de ticket editables
 
@@ -322,7 +346,7 @@ que imprime una hoja de prueba y **sí levanta el error en pantalla** si no cone
 |---|---|
 | No aparece nada del módulo en el POS | `Enable Restaurant Mode` apagado, o falta recargar el POS. |
 | El ticket queda en `Not Required` | No hay `Restaurant Printer` habilitada con ese rol y ese POS Profile. |
-| Dice `Printed` pero no sale papel | Modo `Puente Android` sin la app corriendo con el `Bridge User`. Prueba `TCP Directo` para ver el error real. |
+| Dice `Printed` pero no sale papel | Modo `Puente Android` sin la app corriendo con el `Bridge User`; o la impresora recibió el trabajo pero está sin papel, atascada o con la tapa abierta (eso no lo reporta ninguno de los dos modos). |
 | Los acentos salen como símbolos | Codepage equivocado en la impresora. Empieza por CP850. |
 | El ticket sale cortado a lo ancho | `Characters per Line` mal: 32 para 58 mm, 48 para 80 mm. |
 | Un plato no aparece en la grilla | Está en un grupo de menú del día y no se marcó al abrir el turno. |
