@@ -320,6 +320,15 @@ After installation, open the POS at:
 - **Standalone**: `/pos-prime` — full-screen SPA with client-side routing
 - **Inside Desk**: `/app/pos-terminal` — embedded within Frappe Desk navigation
 
+### Restaurant Module
+
+This fork adds an opt-in restaurant/pensión extension: dine-in vs takeaway per line,
+kitchen notes, free modifiers, fixed-price combos, ESC/POS kitchen ticket and till receipt
+printing, daily dish availability and combo-aware reports. It ships disabled — sites that
+never turn it on see no behavior change.
+
+📖 **[Guía de uso del módulo restaurante](docs/restaurant-module.md)** (Spanish)
+
 ### Kiosk Mode
 
 1. Open a POS session in POS Prime
