@@ -39,8 +39,10 @@ function onDenomApply(value: number) {
 interface PaymentSummary {
   mode_of_payment: string
   opening_amount: number
-  sales_amount: number
-  expected_amount: number
+  // Absent on a blind count — get_shift_summary withholds the figures
+  // rather than the UI merely hiding them.
+  sales_amount: number | null
+  expected_amount: number | null
   closing_amount: number
 }
 
@@ -49,6 +51,10 @@ const grandTotal = ref(0)
 const netTotal = ref(0)
 const totalQuantity = ref(0)
 const numInvoices = ref(0)
+// Blind count when false (Restaurant Settings → "Show Expected Amount When
+// Closing"): the cashier enters what they counted with nothing to anchor
+// on. The difference is still computed server-side by close_shift.
+const showExpected = ref(true)
 const loading = ref(false)
 const loadingSummary = ref(true)
 const error = ref('')
@@ -67,6 +73,7 @@ async function loadSummary() {
     const data = await call('pos_prime.api.pos_session.get_shift_summary', {
       opening_entry: sessionStore.openingEntry,
     })
+    showExpected.value = data.show_expected_amount !== false
     grandTotal.value = data.grand_total || 0
     netTotal.value = data.net_total || 0
     totalQuantity.value = data.total_quantity || 0
@@ -75,9 +82,11 @@ async function loadSummary() {
     paymentSummary.value = (data.payment_summary || []).map((ps: any) => ({
       mode_of_payment: ps.mode_of_payment,
       opening_amount: ps.opening_amount,
-      sales_amount: ps.sales_amount,
-      expected_amount: ps.expected_amount,
-      closing_amount: ps.expected_amount, // Pre-fill with expected
+      sales_amount: ps.sales_amount ?? null,
+      expected_amount: ps.expected_amount ?? null,
+      // Pre-fill with expected — but not on a blind count, where the
+      // prefilled value would hand over the very figure being withheld.
+      closing_amount: showExpected.value ? ps.expected_amount : 0,
     }))
   } catch (e: any) {
     error.value = e.messages?.[0] || e.message || 'Failed to load shift summary'
@@ -87,7 +96,7 @@ async function loadSummary() {
 }
 
 function getDifference(ps: PaymentSummary) {
-  return ps.closing_amount - ps.expected_amount
+  return ps.closing_amount - (ps.expected_amount ?? 0)
 }
 
 async function handleCloseShift() {
@@ -150,17 +159,19 @@ async function handleCloseShift() {
           </div>
         </div>
 
-        <!-- Shift summary stats -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- Shift summary stats. On a blind count only the counts are
+             shown — the money figures would give away exactly what the
+             cashier is being asked to count without help. -->
+        <div class="grid gap-3" :class="showExpected ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'">
           <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 text-center">
             <div class="text-lg font-bold text-blue-700 dark:text-blue-400">{{ numInvoices }}</div>
             <div class="text-xs text-blue-500 dark:text-blue-400/70">{{ __('Invoices') }}</div>
           </div>
-          <div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-3 text-center">
+          <div v-if="showExpected" class="bg-green-50 dark:bg-green-900/30 rounded-lg p-3 text-center">
             <div class="text-lg font-bold text-green-700 dark:text-green-400">{{ formatCurrency(grandTotal) }}</div>
             <div class="text-xs text-green-500 dark:text-green-400/70">{{ __('Grand Total') }}</div>
           </div>
-          <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
+          <div v-if="showExpected" class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
             <div class="text-lg font-bold text-purple-700 dark:text-purple-400">{{ formatCurrency(netTotal) }}</div>
             <div class="text-xs text-purple-500 dark:text-purple-400/70">{{ __('Net Total') }}</div>
           </div>
@@ -179,9 +190,9 @@ async function handleCloseShift() {
                 <tr class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <th class="text-left px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Mode') }}</th>
                   <th class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Opening') }}</th>
-                  <th class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Expected') }}</th>
+                  <th v-if="showExpected" class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Expected') }}</th>
                   <th class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Closing') }}</th>
-                  <th class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Diff') }}</th>
+                  <th v-if="showExpected" class="text-right px-3 py-2 font-medium text-gray-600 dark:text-gray-400">{{ __('Diff') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,7 +203,7 @@ async function handleCloseShift() {
                 >
                   <td class="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{{ ps.mode_of_payment }}</td>
                   <td class="px-3 py-2 text-right text-gray-500 dark:text-gray-400">{{ formatCurrency(ps.opening_amount) }}</td>
-                  <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-300 font-medium">{{ formatCurrency(ps.expected_amount) }}</td>
+                  <td v-if="showExpected" class="px-3 py-2 text-right text-gray-700 dark:text-gray-300 font-medium">{{ formatCurrency(ps.expected_amount ?? 0) }}</td>
                   <td class="px-3 py-2 text-right">
                     <div class="flex items-center justify-end gap-1">
                       <input
@@ -213,6 +224,7 @@ async function handleCloseShift() {
                     </div>
                   </td>
                   <td
+                    v-if="showExpected"
                     class="px-3 py-2 text-right font-medium"
                     :class="getDifference(ps) === 0 ? 'text-green-600 dark:text-green-400' : getDifference(ps) > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'"
                   >

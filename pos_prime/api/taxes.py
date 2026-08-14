@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 import json
 
-from pos_prime.api._utils import safe_float
+from pos_prime.api._utils import lock_combo_rates, safe_float
 
 
 @frappe.whitelist()
@@ -67,7 +67,8 @@ def calculate_taxes(
             invoice.tax_category = profile.tax_category
 
         # Add items with full field support
-        for item_data in items:
+        locked_rates = {}
+        for idx, item_data in enumerate(items):
             item_dict = {
                 "item_code": item_data.get("item_code"),
                 "qty": item_data.get("qty", 1),
@@ -101,6 +102,14 @@ def calculate_taxes(
             # this, restaurant combo components will too).
             row._line_uid = item_data.get("line_uid")
             row._combo_uid = item_data.get("combo_uid")
+            if row._combo_uid:
+                # Same lock create_pos_invoice applies (see invoices.py) —
+                # without it set_missing_values() re-derives the component's
+                # rate from the price list and this preview totals the
+                # components' list prices instead of the combo price.
+                locked_rates[idx] = safe_float(item_data.get("rate", 0))
+
+        lock_combo_rates(invoice, locked_rates)
 
         # Use ERPNext's built-in tax calculation
         invoice.set_missing_values()

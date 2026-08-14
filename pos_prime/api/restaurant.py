@@ -15,10 +15,33 @@ from pos_prime.api._utils import (
 )
 from pos_prime.api.invoices import _create_pos_invoice_doc
 from pos_prime.api.items import _get_group_and_children
+from pos_prime.pos_prime.doctype.restaurant_combo.restaurant_combo import WEEKDAY_FIELDS
 from pos_prime.restaurant.pricing import split_combo_price
 from pos_prime.restaurant.printing import print_comanda, print_receipt, send_test_ticket
 
 DESTINATIONS = ("Mesa", "Para llevar")
+
+
+def _is_available_today(combo, weekday):
+	"""RestaurantCombo.is_available_on for a plain get_all row — avoids
+	loading a full document per combo just to read seven Check fields."""
+	flags = [int(combo.get(field) or 0) for field in WEEKDAY_FIELDS]
+	return not any(flags) or bool(flags[weekday])
+
+
+def _slot_eligible_items(combo_doc, slot):
+	"""The item groups and item codes one combo slot accepts.
+
+	A slot draws from an Item Group, from individually named items, or from
+	both — get_combo_options (which feeds the picker) and
+	_resolve_combo_selection (which validates the sale) must agree on that,
+	so both go through here."""
+	eligible_groups = []
+	if slot.item_group:
+		eligible_groups = (
+			_get_group_and_children(slot.item_group) if slot.include_child_groups else [slot.item_group]
+		)
+	return eligible_groups, combo_doc.items_for_slot(slot)
 
 
 @frappe.whitelist()
@@ -29,21 +52,34 @@ def get_restaurant_config(pos_profile):
 
 	settings = frappe.get_single("Restaurant Settings")
 
-	combos = frappe.get_all(
-		"Restaurant Combo",
-		filters={"disabled": 0},
-		fields=[
-			"name",
-			"combo_name",
-			"combo_price",
-			"currency",
-			"print_label",
-			"image",
-			"description",
-			"sort_order",
-		],
-		order_by="sort_order asc, combo_name asc",
-	)
+	# Weekend combos differ from the weekday one, so the grid only shows
+	# what is actually on offer today. No day ticked means every day (see
+	# RestaurantCombo.is_available_on), which is every combo saved before
+	# the availability fields existed.
+	weekday = frappe.utils.now_datetime().weekday()
+	combos = [
+		combo
+		for combo in frappe.get_all(
+			"Restaurant Combo",
+			filters={"disabled": 0},
+			fields=[
+				"name",
+				"combo_name",
+				"combo_price",
+				"currency",
+				"print_label",
+				"image",
+				"description",
+				"sort_order",
+				*WEEKDAY_FIELDS,
+			],
+			order_by="sort_order asc, combo_name asc",
+		)
+		if _is_available_today(combo, weekday)
+	]
+	for combo in combos:
+		for field in WEEKDAY_FIELDS:
+			combo.pop(field, None)
 	# Slot detail (with item-group expansion) is fetched per-combo, on
 	# demand, by get_combo_options — mirrors the batch/serial selector
 	# pattern (fetch when the picker opens, not for every combo up front).
@@ -179,15 +215,14 @@ def get_combo_options(combo, pos_profile):
 	combo_doc = frappe.get_doc("Restaurant Combo", combo)
 	slots = []
 	for slot in combo_doc.slots:
-		eligible_groups = (
-			_get_group_and_children(slot.item_group) if slot.include_child_groups else [slot.item_group]
-		)
+		eligible_groups, eligible_items = _slot_eligible_items(combo_doc, slot)
 		slots.append(
 			{
 				"slot_idx": slot.idx - 1,
 				"slot_label": slot.slot_label,
 				"item_group": slot.item_group,
 				"eligible_groups": eligible_groups,
+				"eligible_items": eligible_items,
 				"default_item": slot.default_item,
 				"allow_modifiers": slot.allow_modifiers,
 			}
@@ -239,14 +274,12 @@ def _resolve_combo_selection(combo_doc, selections, profile, precision=2):
 				_('{0}: no item selected for slot "{1}".').format(combo_doc.combo_name, slot.slot_label)
 			)
 
-		eligible_groups = (
-			_get_group_and_children(slot.item_group) if slot.include_child_groups else [slot.item_group]
-		)
+		eligible_groups, eligible_items = _slot_eligible_items(combo_doc, slot)
 		item_group = frappe.db.get_value("Item", item_code, "item_group")
-		if item_group not in eligible_groups:
+		if item_code not in eligible_items and item_group not in eligible_groups:
 			frappe.throw(
-				_('{0}: {1} does not belong to item group "{2}" (slot "{3}").').format(
-					combo_doc.combo_name, item_code, slot.item_group, slot.slot_label
+				_('{0}: {1} is not one of the options for slot "{2}".').format(
+					combo_doc.combo_name, item_code, slot.slot_label
 				)
 			)
 		item_codes.append(item_code)
@@ -396,6 +429,10 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 		combo_doc = frappe.get_doc("Restaurant Combo", next(iter(combo_names)))
 		if combo_doc.disabled:
 			frappe.throw(_("{0} is disabled.").format(combo_doc.combo_name))
+		# A tab left open overnight still shows yesterday's combos, so the
+		# day check has to hold here too, not only in get_restaurant_config.
+		if not combo_doc.is_available_on(frappe.utils.now_datetime().weekday()):
+			frappe.throw(_("{0} is not available today.").format(combo_doc.combo_name))
 
 		selections = [
 			{"slot_idx": i.get("combo_slot_idx"), "item_code": i.get("item_code")} for i in group_items
@@ -414,11 +451,17 @@ def create_restaurant_sale(customer, pos_profile, items, payments, **kwargs):
 			item["description"] = f"{label} · {slot['slot_label']}"
 			item["_list_rate"] = slot["list_rate"]
 
+		# Components can each go somewhere different (segundo at the table,
+		# sopa to take away), so the instance-wide destination is only
+		# meaningful when they all agree — left empty otherwise rather than
+		# claiming one component's destination for the whole combo. Reports
+		# and the kitchen ticket both read the per-item destination anyway.
+		group_destinations = {i["destination"] for i in group_items}
 		combo_meta[combo_uid] = {
 			"combo_doc": combo_doc,
 			"instance_no": instance_no,
 			"label": label,
-			"destination": group_items[0]["destination"],
+			"destination": group_items[0]["destination"] if len(group_destinations) == 1 else "",
 			"combo_price": combo_doc.combo_price,
 			# Instance-wide note — the frontend replicates it onto every
 			# component line (cartStore.updateComboNotes), so any one line

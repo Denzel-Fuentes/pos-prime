@@ -470,8 +470,11 @@ export type RestaurantDestination = 'Mesa' | 'Para llevar'
 export interface RestaurantComboSlotOption {
   slot_idx: number
   slot_label: string
-  item_group: string
+  item_group: string | null
   eligible_groups: string[]
+  /** Item codes listed explicitly on the slot, on top of eligible_groups —
+   * a slot can draw from a group, from a handful of named dishes, or both. */
+  eligible_items: string[]
   default_item: string | null
   allow_modifiers: boolean
 }

@@ -12,3 +12,4 @@ pos_prime.patches.v1_0.set_hide_category_search_default
 pos_prime.patches.v1_0.set_ticket_content_defaults
 pos_prime.patches.v1_0.create_ticket_print_formats
 pos_prime.patches.v1_0.set_combo_pricing_defaults
+pos_prime.patches.v1_0.set_show_expected_amount_default

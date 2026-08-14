@@ -58,6 +58,17 @@ def get_shift_summary(opening_entry):
         for d in opening.balance_details
     }
 
+    # Blind count: with Restaurant Settings' "Show Expected Amount When
+    # Closing" off, the cashier counts the till without being told what it
+    # should hold, so none of the sold/expected figures are sent at all —
+    # withholding them here rather than hiding them in the UI is what makes
+    # it a real blind count. close_shift still computes the difference
+    # server-side. Absent (a site that never ran the patch) means show.
+    show_expected = frappe.db.get_single_value(
+        "Restaurant Settings", "show_expected_amount_on_close"
+    )
+    show_expected = True if show_expected is None else bool(show_expected)
+
     payment_summary = []
     for pr in closing_entry.payment_reconciliation:
         row_opening = getattr(pr, "opening_amount", None)
@@ -72,14 +83,14 @@ def get_shift_summary(opening_entry):
             opening_amt = opening_amounts.get(pr.mode_of_payment, 0)
             sales_amt = pr.expected_amount or 0
 
-        payment_summary.append(
-            {
-                "mode_of_payment": pr.mode_of_payment,
-                "opening_amount": opening_amt,
-                "sales_amount": sales_amt,
-                "expected_amount": opening_amt + sales_amt,
-            }
-        )
+        row = {
+            "mode_of_payment": pr.mode_of_payment,
+            "opening_amount": opening_amt,
+        }
+        if show_expected:
+            row["sales_amount"] = sales_amt
+            row["expected_amount"] = opening_amt + sales_amt
+        payment_summary.append(row)
 
     # v14/v15 use pos_transactions, v16 uses pos_invoices
     transactions = (
@@ -88,13 +99,16 @@ def get_shift_summary(opening_entry):
         or []
     )
 
-    return {
-        "grand_total": closing_entry.grand_total,
-        "net_total": closing_entry.net_total,
+    summary = {
         "total_quantity": closing_entry.total_quantity,
         "num_invoices": len(transactions),
         "payment_summary": payment_summary,
+        "show_expected_amount": show_expected,
     }
+    if show_expected:
+        summary["grand_total"] = closing_entry.grand_total
+        summary["net_total"] = closing_entry.net_total
+    return summary
 
 
 @frappe.whitelist()

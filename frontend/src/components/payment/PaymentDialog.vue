@@ -192,7 +192,7 @@ function getMethodIcon(mode: string) {
 }
 
 function selectMethod(mode: string) {
-  paymentStore.setActivePaymentMethod(mode)
+  paymentStore.setActivePaymentMethod(mode, effectiveGrandTotal.value)
 }
 
 function pressKey(key: string) {

@@ -14,6 +14,11 @@ export const usePaymentStore = defineStore('payment', () => {
   const submitting = ref(false)
   const lastInvoice = ref<POSInvoice | null>(null)
   const error = ref<string | null>(null)
+  // The method currently holding an amount we filled in ourselves (never
+  // typed by the cashier).  Switching away from it hands its amount to the
+  // newly picked method instead of leaving both populated; any manual edit
+  // clears the mark so a deliberate split payment is left alone.
+  const autoFilledMethod = ref<string | null>(null)
 
   const totalPaid = computed(() =>
     payments.value.reduce((sum, p) => sum + p.amount, 0)
@@ -36,29 +41,63 @@ export const usePaymentStore = defineStore('payment', () => {
       defaultMethod?.mode_of_payment || paymentMethods[0]?.mode_of_payment || 'Cash'
 
     // Pre-fill default method with grand total unless disabled
+    autoFilledMethod.value = null
     if (!disableGrandTotalToDefaultMop && grandTotal > 0) {
       const defaultPayment = payments.value.find(
         (p) => p.mode_of_payment === activePaymentMethod.value
       )
       if (defaultPayment) {
         defaultPayment.amount = grandTotal
+        autoFilledMethod.value = defaultPayment.mode_of_payment
       }
     }
   }
 
-  function setPaymentAmount(modeOfPayment: string, amount: number) {
+  function writeAmount(modeOfPayment: string, amount: number) {
+    const value = Math.max(0, Math.round(amount * 100) / 100)
     const existing = payments.value.find(
       (p) => p.mode_of_payment === modeOfPayment
     )
     if (existing) {
-      existing.amount = Math.max(0, amount)
+      existing.amount = value
     } else {
-      payments.value.push({ mode_of_payment: modeOfPayment, amount: Math.max(0, amount) })
+      payments.value.push({ mode_of_payment: modeOfPayment, amount: value })
     }
   }
 
-  function setActivePaymentMethod(mode: string) {
+  function setPaymentAmount(modeOfPayment: string, amount: number) {
+    // A hand-typed amount is a deliberate choice — stop treating it as ours.
+    if (autoFilledMethod.value === modeOfPayment) {
+      autoFilledMethod.value = null
+    }
+    writeAmount(modeOfPayment, amount)
+  }
+
+  function setActivePaymentMethod(mode: string, grandTotal?: number) {
+    if (activePaymentMethod.value === mode) return
+
+    // Hand over an untouched auto-filled amount rather than leaving it
+    // behind — otherwise the cashier has to clear it by hand and, if they
+    // forget, the sale records two payment rows and a bogus change.
+    if (autoFilledMethod.value && autoFilledMethod.value !== mode) {
+      writeAmount(autoFilledMethod.value, 0)
+      autoFilledMethod.value = null
+    }
+
     activePaymentMethod.value = mode
+
+    if (grandTotal === undefined) return
+
+    // Fill the new method with whatever is still owed: the whole total when
+    // nothing else is tendered, or just the shortfall when the cashier
+    // already typed a partial amount elsewhere (e.g. 80 cash of 100 -> 20).
+    const current = payments.value.find((p) => p.mode_of_payment === mode)
+    if (current && current.amount > 0) return
+    const remaining = Math.round((grandTotal - totalPaid.value) * 100) / 100
+    if (remaining > 0) {
+      writeAmount(mode, remaining)
+      autoFilledMethod.value = mode
+    }
   }
 
   function changeAmount(grandTotal: number) {
@@ -128,6 +167,7 @@ export const usePaymentStore = defineStore('payment', () => {
   function $reset() {
     payments.value = []
     activePaymentMethod.value = ''
+    autoFilledMethod.value = null
     showPaymentDialog.value = false
     submitting.value = false
     lastInvoice.value = null
@@ -137,6 +177,7 @@ export const usePaymentStore = defineStore('payment', () => {
   return {
     payments,
     activePaymentMethod,
+    autoFilledMethod,
     showPaymentDialog,
     submitting,
     lastInvoice,

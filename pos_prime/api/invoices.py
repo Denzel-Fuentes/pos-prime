@@ -15,6 +15,7 @@ from pos_prime.api._utils import (
     get_product_bundle_items,
     validate_bundle_stock,
     set_campaign_from_profile,
+    lock_combo_rates,
 )
 
 
@@ -289,31 +290,7 @@ def _create_pos_invoice_doc(
         if store_credit > available:
             store_credit = available
 
-    # Lock combo-component rates so ERPNext can't re-derive them from the
-    # item's price list. AccountsController.validate() calls
-    # set_missing_values() (possibly more than once — e.g. again on
-    # submit), so wrap the bound method rather than fixing rates once:
-    # Python resolves the instance attribute before the class method, so
-    # every internal call is caught. price_list_rate must be locked too,
-    # or calculate_item_values() resets rate from it when rate == 0
-    # (a legitimately free combo component).
-    if locked_rates:
-        _orig_set_missing_values = invoice.set_missing_values
-
-        def _set_missing_values_and_lock(*args, **kwargs):
-            result = _orig_set_missing_values(*args, **kwargs)
-            for idx, rate in locked_rates.items():
-                row = invoice.items[idx]
-                row.rate = rate
-                row.price_list_rate = rate
-                row.discount_percentage = 0
-                row.discount_amount = 0
-                row.margin_type = ""
-                row.margin_rate_or_amount = 0
-                row.pricing_rules = None
-            return result
-
-        invoice.set_missing_values = _set_missing_values_and_lock
+    lock_combo_rates(invoice, locked_rates)
 
     invoice.flags.ignore_permissions = True
     invoice.set_missing_values()

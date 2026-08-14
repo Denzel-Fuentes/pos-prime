@@ -224,11 +224,12 @@ export const useCartStore = defineStore('cart', () => {
     debounceTaxCalculation()
   }
 
-  /** Per-line destination toggle. Refuses on combo components — a
-   * combo instance's destination changes for all its lines together,
-   * via updateComboInstanceDestination. */
+  /** Per-line destination toggle. Combo components included: one customer
+   * routinely eats the segundo at a table and takes the sopa away, so each
+   * component carries its own destination (the kitchen ticket already
+   * groups by line destination). updateComboInstanceDestination remains the
+   * "whole combo at once" shortcut from the group header. */
   function updateItemDestination(index: number, destination: RestaurantDestination) {
-    if (items.value[index]?.combo_uid) return
     items.value[index].destination = destination
   }
 
@@ -447,7 +448,7 @@ export const useCartStore = defineStore('cart', () => {
   ) {
     // Clear previous pricing rule markers from non-free items
     for (const item of items.value) {
-      if (!item.is_free_item) {
+      if (!item.is_free_item && !item.combo_uid) {
         item.pricing_rules = null
         item.price_list_rate = null
       }
@@ -466,7 +467,10 @@ export const useCartStore = defineStore('cart', () => {
       const cartItem = pr.line_uid
         ? items.value.find((i) => i.uid === pr.line_uid && !i.is_free_item)
         : items.value.find((i) => i.item_code === pr.item_code && !i.is_free_item)
-      if (cartItem) {
+      // Combo components are priced by the backend's combo split, never by a
+      // pricing rule — the server already excludes them, but a stale or
+      // item_code-matched echo must not overwrite the split rate either.
+      if (cartItem && !cartItem.combo_uid) {
         cartItem.pricing_rules = pr.pricing_rules
         cartItem.price_list_rate = pr.price_list_rate
         // Update rate from pricing rule (the server returns the final discounted rate)

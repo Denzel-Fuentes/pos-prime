@@ -11,6 +11,7 @@ import { useCurrency } from '@/composables/useCurrency'
 import { useDeskMode } from '@/composables/useDeskMode'
 import { LogIn, Calculator, UtensilsCrossed, ArrowLeft } from 'lucide-vue-next'
 import DenominationCalculator from '@/components/shift/DenominationCalculator.vue'
+import type { DailyMenuGroup } from '@/types'
 
 const router = useRouter()
 const sessionStore = usePosSessionStore()
@@ -97,6 +98,18 @@ function toggleDish(itemCode: string) {
   availableDishes.value[itemCode] = !availableDishes.value[itemCode]
 }
 
+function selectedCountFor(group: DailyMenuGroup) {
+  return group.items.filter((item) => availableDishes.value[item.item_code]).length
+}
+
+/** Per-group "All"/"None" — a pensión with thirty segundos shouldn't have
+ * to tap thirty chips to say "everything is on today". */
+function setGroupSelection(group: DailyMenuGroup, selected: boolean) {
+  for (const item of group.items) {
+    availableDishes.value[item.item_code] = selected
+  }
+}
+
 function goToNextStep() {
   if (!selectedProfile.value) {
     error.value = __('Please select a POS Profile')
@@ -157,7 +170,12 @@ async function openShift() {
 
 <template>
   <div :class="['bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4', isDeskMode ? 'min-h-full' : 'min-h-screen']">
-    <div class="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+    <!-- The dish picker holds several groups of dishes side by side, so it
+         gets a wider card than the one-column balances step. -->
+    <div
+      class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 transition-[max-width]"
+      :class="step === 2 && restaurantStore.hasDailyMenu ? 'max-w-3xl' : 'max-w-md'"
+    >
       <div class="flex items-center gap-3 mb-6">
         <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30">
           <LogIn class="text-blue-600 dark:text-blue-400" :size="20" />
@@ -273,21 +291,47 @@ async function openShift() {
             <UtensilsCrossed :size="14" class="text-amber-500" />
             {{ __('Available Dishes Today') }}
           </label>
-          <div class="space-y-3">
+          <!-- A pensión can list dozens of dishes across several groups.
+               The list scrolls inside its own box so the Back / Open Shift
+               buttons below stay reachable, and each dish is a grid cell
+               with a truncating label so a long name can't widen the page. -->
+          <div class="space-y-3 max-h-[55vh] overflow-y-auto pr-1 -mr-1">
             <div v-for="group in restaurantStore.dailyMenuCandidates" :key="group.item_group">
-              <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
-                {{ group.item_group }}
+              <div class="sticky top-0 z-10 bg-white dark:bg-gray-900 flex items-center gap-2 py-1 mb-1.5">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
+                  {{ group.item_group }}
+                </span>
+                <span class="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+                  {{ selectedCountFor(group) }}/{{ group.items.length }}
+                </span>
+                <div v-if="group.items.length" class="ml-auto flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    @click="setGroupSelection(group, true)"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  >
+                    {{ __('All') }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="setGroupSelection(group, false)"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    {{ __('None') }}
+                  </button>
+                </div>
               </div>
               <div v-if="group.items.length === 0" class="text-xs text-gray-400 dark:text-gray-500">
                 {{ __('No items in this group') }}
               </div>
-              <div v-else class="flex flex-wrap gap-1.5">
+              <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
                 <button
                   v-for="item in group.items"
                   :key="item.item_code"
                   type="button"
+                  :title="item.item_name"
                   @click="toggleDish(item.item_code)"
-                  class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+                  class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors text-left truncate"
                   :class="
                     availableDishes[item.item_code]
                       ? 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 font-semibold'

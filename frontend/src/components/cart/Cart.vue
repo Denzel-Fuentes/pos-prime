@@ -95,9 +95,15 @@ function onToggleItemDestination(index: number) {
 }
 
 function onToggleComboDestination(comboUid: string) {
-  const item = cartStore.items.find((i) => i.combo_uid === comboUid)
-  if (!item) return
-  cartStore.updateComboInstanceDestination(comboUid, item.destination === 'Para llevar' ? 'Mesa' : 'Para llevar')
+  const lines = cartStore.items.filter((i) => i.combo_uid === comboUid)
+  if (!lines.length) return
+  // Components can differ (segundo at the table, sopa to take away). From a
+  // mixed instance the first tap only unifies them — flipping straight away
+  // would silently discard the per-line choices behind one destination.
+  const first = lines[0].destination === 'Para llevar' ? 'Para llevar' : 'Mesa'
+  const mixed = lines.some((l) => (l.destination || 'Mesa') !== first)
+  const target: RestaurantDestination = mixed ? first : first === 'Para llevar' ? 'Mesa' : 'Para llevar'
+  cartStore.updateComboInstanceDestination(comboUid, target)
 }
 
 function onUpdateComboQty(comboUid: string, qty: number) {
@@ -328,6 +334,7 @@ const displayGroups = computed<CartDisplayGroup[]>(() => {
             @remove-instance="cartStore.removeComboInstance"
             @update-qty="onUpdateComboQty"
             @toggle-destination="onToggleComboDestination"
+            @toggle-line-destination="onToggleItemDestination"
             @edit-modifiers="onEditModifiers"
             @edit-combo-notes="onEditComboNotes"
           />

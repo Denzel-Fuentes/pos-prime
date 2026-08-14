@@ -27,6 +27,9 @@ export interface ComboSlotSelection {
   item_code: string
   notes?: string
   modifiers?: { modifier: string; label: string }[]
+  /** Per-component destination — a customer can eat the segundo at a table
+   * and take the sopa away. Falls back to the combo-wide destination. */
+  destination?: RestaurantDestination
 }
 
 export const useRestaurantStore = defineStore('restaurant', () => {
@@ -136,22 +139,25 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     slotIdx: number,
     itemCode: string,
     notes?: string | null,
-    modifiers?: { modifier: string; label: string }[]
+    modifiers?: { modifier: string; label: string }[],
+    destination?: RestaurantDestination | null
   ): string {
     return JSON.stringify({
       slot_idx: slotIdx,
       item_code: itemCode,
       notes: notes || null,
       modifiers: (modifiers || []).map((m) => m.modifier).sort(),
+      destination: destination || null,
     })
   }
 
-  /** Finds an existing cart instance of the same combo whose destination,
-   * instance-wide note, and every per-slot selection (item/notes/modifiers)
+  /** Finds an existing cart instance of the same combo whose instance-wide
+   * note and every per-slot selection (item/notes/modifiers/destination)
    * exactly match what's about to be added — so re-adding an identical
    * Completo bumps its qty instead of creating a visually redundant
    * duplicate group. Any difference (a swapped slot item, a different
-   * note) is treated as a distinct instance, never merged. */
+   * note, one component sent to the table) is treated as a distinct
+   * instance, never merged. */
   function findMatchingInstance(
     items: CartItem[],
     comboName: string,
@@ -160,7 +166,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     comboNotes?: string
   ): string | null {
     const wanted = selections
-      .map((s) => selectionKey(s.slot_idx, s.item_code, s.notes, s.modifiers))
+      .map((s) => selectionKey(s.slot_idx, s.item_code, s.notes, s.modifiers, s.destination || destination))
       .sort()
       .join('|')
 
@@ -174,10 +180,11 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     }
 
     for (const [uid, lines] of groups) {
-      if ((lines[0].destination || null) !== destination) continue
       if ((lines[0].combo_notes || null) !== (comboNotes || null)) continue
       const actual = lines
-        .map((l) => selectionKey(l.combo_slot_idx ?? -1, l.item_code, l.notes, l.modifiers))
+        .map((l) =>
+          selectionKey(l.combo_slot_idx ?? -1, l.item_code, l.notes, l.modifiers, l.destination)
+        )
         .sort()
         .join('|')
       if (actual === wanted) return uid
@@ -233,7 +240,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
         return makeCartItem(catalogItem, {
           rate: comp.rate,
           amount: comp.rate,
-          destination,
+          destination: selection?.destination || destination,
           combo_uid: comboUid,
           combo: combo.name,
           combo_label: `${label} · ${comp.slot_label}`,

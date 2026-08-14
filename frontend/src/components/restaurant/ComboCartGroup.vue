@@ -25,6 +25,7 @@ const emit = defineEmits<{
   removeInstance: [comboUid: string]
   updateQty: [comboUid: string, qty: number]
   toggleDestination: [comboUid: string]
+  toggleLineDestination: [index: number]
   editModifiers: [index: number]
   editComboNotes: [comboUid: string]
 }>()
@@ -43,7 +44,16 @@ const { isTouchDevice } = useTouchDevice()
 // whole instance's.
 const qty = computed(() => props.lines[0]?.item.qty ?? 1)
 
+// Components can now go to different destinations (segundo at the table,
+// sopa to take away), so the header chip reports "mixed" rather than
+// picking one line's value and quietly misrepresenting the rest. Tapping
+// it still flips the whole instance to a single destination.
+const isMixedDestination = computed(
+  () => new Set(props.lines.map((l) => l.item.destination || 'Mesa')).size > 1
+)
+
 function destinationLabel(dest?: string | null) {
+  if (isMixedDestination.value) return __('MIXTO')
   if (dest === 'Para llevar') return restaurantStore.labelTakeaway
   return restaurantStore.labelDineIn
 }
@@ -60,7 +70,7 @@ function destinationLabel(dest?: string | null) {
         class="inline-flex items-center gap-1 font-bold uppercase tracking-wide rounded bg-white/70 dark:bg-black/20 text-amber-700 dark:text-amber-400 shrink-0"
         :class="isTouchDevice ? 'px-2 py-1.5 text-[10px]' : 'px-1.5 py-0.5 text-[9px]'"
       >
-        <ShoppingBag v-if="destination === 'Para llevar'" :size="9" />
+        <ShoppingBag v-if="!isMixedDestination && destination === 'Para llevar'" :size="9" />
         <UtensilsCrossed v-else :size="9" />
         {{ destinationLabel(destination) }}
       </button>
@@ -118,6 +128,7 @@ function destinationLabel(dest?: string | null) {
         @select="emit('select', $event)"
         @update-qty="() => {}"
         @remove="emit('removeInstance', comboUid)"
+        @toggle-destination="emit('toggleLineDestination', $event)"
         @edit-modifiers="emit('editModifiers', $event)"
       />
     </div>

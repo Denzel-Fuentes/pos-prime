@@ -16,10 +16,10 @@ const props = defineProps<{
   // True for a component row rendered inside ComboCartGroup. Qty is fixed
   // at 1 by the price-distribution algorithm and deletion removes the
   // whole combo instance (via the group header), not just this row — so
-  // both controls are redundant/misleading here and are hidden. Destination
-  // is also set once for the whole instance (via the group header), so that
-  // chip is hidden too — but notes/modifiers are per component (e.g. "hold
-  // the salt" on just the soup) and stay editable here.
+  // both controls are redundant/misleading here and are hidden. Destination,
+  // notes and modifiers stay editable per component: one customer eats the
+  // segundo at a table and takes the sopa away, and "hold the salt" applies
+  // to just the soup. The group header still flips all of them at once.
   isComboComponent?: boolean
 }>()
 
@@ -130,15 +130,13 @@ const modifiersSummary = computed(() => {
 
         <!-- Restaurant: destination / notes / modifiers (hidden entirely
              for free pricing-rule items, which aren't independently
-             editable; destination is additionally hidden for combo
-             components since it's set once for the whole instance) -->
+             editable) -->
         <div
           v-if="restaurantStore.enabled && !item.is_free_item"
           class="flex flex-wrap items-center gap-1 mt-1"
           @click.stop
         >
           <button
-            v-if="!isComboComponent"
             @click="emit('toggleDestination', index)"
             :aria-label="__('Toggle destination')"
             class="inline-flex items-center gap-1 rounded font-bold uppercase tracking-wide transition-colors shrink-0"

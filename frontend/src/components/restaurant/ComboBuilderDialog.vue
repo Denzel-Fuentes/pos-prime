@@ -38,6 +38,10 @@ const destination = ref<RestaurantDestination>(restaurantStore.defaultDestinatio
 // default_item pre-seed don't need to change shape.
 const slotNotes = ref<Record<number, string>>({})
 const slotModifiers = ref<Record<number, { modifier: string; label: string }[]>>({})
+// Per-slot destination override. Empty means "follow the combo-wide
+// toggle" — set only when the customer splits the combo (segundo at the
+// table, sopa to take away), which the header toggle then resets.
+const slotDestinations = ref<Record<number, RestaurantDestination>>({})
 const comboNotes = ref('')
 const modifierDialogSlot = ref<number | null>(null)
 const showComboNoteDialog = ref(false)
@@ -65,7 +69,29 @@ onMounted(async () => {
 })
 
 function itemsForSlot(slot: RestaurantComboSlotOption) {
-  return itemsStore.allItems.filter((item) => slot.eligible_groups.includes(item.item_group))
+  // A slot draws from an Item Group, from explicitly listed items, or both
+  // — mirrors _slot_eligible_items in pos_prime/api/restaurant.py, which
+  // validates the same thing at sale time.
+  return itemsStore.allItems.filter(
+    (item) =>
+      slot.eligible_groups.includes(item.item_group) ||
+      (slot.eligible_items || []).includes(item.item_code)
+  )
+}
+
+function slotDestination(slotIdx: number): RestaurantDestination {
+  return slotDestinations.value[slotIdx] || destination.value
+}
+
+function setSlotDestination(slotIdx: number, dest: RestaurantDestination) {
+  slotDestinations.value[slotIdx] = dest
+}
+
+/** The header toggle is the "whole combo goes here" control — it drops any
+ * per-slot override rather than leaving overridden slots silently behind. */
+function setComboDestination(dest: RestaurantDestination) {
+  destination.value = dest
+  slotDestinations.value = {}
 }
 
 function selectForSlot(slotIdx: number, itemCode: string) {
@@ -140,6 +166,7 @@ async function confirm() {
       item_code: selections.value[s.slot_idx],
       notes: slotNotes.value[s.slot_idx] || undefined,
       modifiers: slotModifiers.value[s.slot_idx]?.length ? slotModifiers.value[s.slot_idx] : undefined,
+      destination: slotDestination(s.slot_idx),
     }))
     const comboUid = await restaurantStore.addComboToCart(
       props.combo,
@@ -202,7 +229,7 @@ async function confirm() {
               <button
                 v-for="dest in restaurantStore.config?.destinations || ['Mesa', 'Para llevar']"
                 :key="dest"
-                @click="destination = dest as RestaurantDestination"
+                @click="setComboDestination(dest as RestaurantDestination)"
                 class="flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-colors"
                 :class="
                   destination === dest
@@ -253,9 +280,24 @@ async function confirm() {
               </button>
             </div>
 
-            <!-- Per-component notes/modifiers (unified into one dialog),
-                 once a selection exists -->
+            <!-- Per-component destination + notes/modifiers (unified into
+                 one dialog), once a selection exists -->
             <div v-if="selections[slot.slot_idx]" class="flex flex-wrap items-center gap-1 mt-1.5">
+              <div class="inline-flex rounded bg-gray-100 dark:bg-gray-800 p-0.5">
+                <button
+                  v-for="dest in restaurantStore.config?.destinations || ['Mesa', 'Para llevar']"
+                  :key="dest"
+                  @click="setSlotDestination(slot.slot_idx, dest as RestaurantDestination)"
+                  class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide transition-colors"
+                  :class="
+                    slotDestination(slot.slot_idx) === dest
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                      : 'text-gray-400 dark:text-gray-500'
+                  "
+                >
+                  {{ dest === 'Mesa' ? restaurantStore.labelDineIn : restaurantStore.labelTakeaway }}
+                </button>
+              </div>
               <button
                 @click="modifierDialogSlot = slot.slot_idx"
                 :aria-label="__('Modifiers')"
