@@ -1,8 +1,9 @@
 # Módulo Restaurante — Guía de uso
 
 Extensión de POS Prime para restaurantes y pensiones: consumo en mesa o para llevar por
-línea, notas de cocina, modificadores gratuitos, combos de precio fijo, impresión de
-comanda y recibo por ESC/POS, platos del día y reportes por combo.
+línea (y por componente de un combo), notas de cocina, modificadores gratuitos, combos de
+precio fijo con días de disponibilidad, impresión de comanda y recibo por ESC/POS, platos
+del día, arqueo a ciegas y reportes por combo.
 
 Todo el módulo está detrás de un interruptor y viene **apagado**. Con `Enable Restaurant
 Mode` en off, POS Prime se comporta exactamente como el POS normal: ni un botón de más.
@@ -40,6 +41,7 @@ Un solo formulario, dividido en secciones:
 | Cart Options | `Disable Coupon Code` | Oculta el campo de cupón en el carrito. |
 | Cart Options | `Disable More Options` | Oculta la sección "More Options" del carrito. |
 | Cart Options | `Hide Category Search` | Oculta el buscador sobre la lista de categorías. Viene activado. |
+| Shift | `Show Expected Amount When Closing` | Viene activado. Apagado hace el **arqueo a ciegas** (§3.7). |
 | Combo Pricing | `Default Combo Pricing Method` | Método de reparto por defecto para todos los combos (§2.2). |
 | Daily Menu | `Item Groups Requiring Daily Selection` | Grupos cuyos platos hay que habilitar cada día (§2.4). |
 | Kitchen Ticket | `Print Kitchen Ticket on Payment` | Imprime la comanda apenas se cobra. |
@@ -63,14 +65,16 @@ Un solo formulario, dividido en secciones:
 | `Allow a Negative Component Price` | Solo para Margen alto (ver abajo). |
 | `Print Label` | Nombre corto para tickets y para la línea agrupada del recibo, ej. `COMPLETO`. |
 | `Sort Order` / `Image` / `Description` | Orden y aspecto de la tarjeta en el POS. |
+| Availability | Siete casillas, `Monday` a `Sunday`: qué días se ofrece el combo (§2.2.2). |
 | `Slots` | Una fila por componente que el cajero debe elegir. |
+| `Individual Items` | Platos sueltos que llenan un slot, nombrados uno por uno (§2.2.3). |
 
 Cada fila de `Slots`:
 
 | Campo | Notas |
 |---|---|
 | `Slot Label` | Lo que ve el cajero: Sopa, Segundo, Refresco. |
-| `Item Group` | De qué grupo puede elegir ese slot. |
+| `Item Group` | De qué grupo puede elegir ese slot. **Opcional** si listas los platos en `Individual Items`. |
 | `Include Child Groups` | Incluye subgrupos del anterior. |
 | `Default Item` | Preselección al abrir el armador. |
 | `Allow Modifiers` | Permite modificadores en ese componente. |
@@ -108,7 +112,40 @@ Al guardar se rechaza la configuración incoherente: Margen alto o Mixto sin nin
 absorbedor, y dos slots con el mismo `Discount Order` (el orden de cascada sería ambiguo).
 
 El cálculo es del servidor y es la autoridad: el POS solo pide una vista previa, y al
-cobrar se recalcula desde cero ignorando cualquier tarifa que haya mandado el cliente.
+cobrar se recalcula desde cero ignorando cualquier tarifa que haya mandado el cliente. Lo
+que ves en el carrito y en la pantalla de cobro es el precio del combo, no la suma de los
+precios de lista de sus platos.
+
+#### 2.2.2 Días en que se ofrece el combo
+
+Las siete casillas de la sección `Availability` deciden qué días aparece el combo en la
+grilla. Sirven para la carta que cambia el fin de semana: un combo con `Saturday` y
+`Sunday`, otro con `Monday` a `Friday`.
+
+**Si no marcas ningún día, el combo se ofrece todos los días.** Por eso los combos que ya
+tenías siguen apareciendo igual que antes, sin tocarlos.
+
+La comprobación se repite al cobrar, así que una pestaña del POS que quedó abierta desde
+ayer no puede vender el combo de ayer.
+
+#### 2.2.3 Platos sueltos en un slot
+
+Un slot puede tomar sus opciones de un Item Group, de platos nombrados uno por uno, o de
+ambos a la vez. Para lo segundo, deja `Item Group` en blanco (o no) y agrega filas en la
+tabla `Individual Items` del combo:
+
+| Campo | Notas |
+|---|---|
+| `Slot Label` | Tiene que coincidir con el `Slot Label` de un slot de arriba. |
+| `Item` | El plato que llena ese slot. |
+
+Es útil para un slot que son dos o tres platos concretos y no un grupo entero. Cada slot
+necesita al menos una de las dos fuentes: si dejas uno sin grupo y sin platos, el combo no
+se deja guardar (sería un selector vacío en la caja).
+
+> La tabla vive en el combo y no dentro de la fila del slot porque Frappe no guarda una
+> tabla anidada dentro de una grilla: se guardaría sin error y volvería vacía. De ahí que
+> las filas se emparejen con su slot por el nombre de la etiqueta.
 
 ### 2.3 Modificadores
 
@@ -132,7 +169,9 @@ el turno.
 1. En Restaurant Settings → Daily Menu, agrega los grupos que cambian todos los días
    (ej. Sopas, Segundos, Refrescos) en `Item Groups Requiring Daily Selection`.
 2. Al abrir turno, el cajero ve un selector con los platos de esos grupos y marca los que
-   hay hoy.
+   hay hoy. Cada grupo trae **All / None** para no ir plato por plato cuando la carta es
+   larga, y la lista tiene su propio scroll: el botón de abrir turno nunca queda fuera de
+   pantalla por muchos platos que haya.
 3. Durante el turno, los platos no marcados **no aparecen** en la grilla ni se pueden
    escanear ni vender desde el autoservicio.
 
@@ -250,7 +289,11 @@ turno.
   de Restaurant Settings.
 - **Por línea**: la etiqueta MESA / PARA LLEVAR de cada línea del carrito se toca para
   cambiar solo esa. Un pedido puede tener platos para mesa y otros para llevar.
-- En un combo, el destino es de toda la instancia, no de cada componente.
+- **Dentro de un combo, también por componente**: el cliente que come el segundo en la mesa
+  y se lleva la sopa es lo normal. Cada componente tiene su etiqueta, en el armador y en el
+  carrito. La cabecera del grupo sigue siendo el "todo el combo": si los componentes están
+  mezclados muestra **MIXTO** y la primera pulsación los unifica antes de voltearlos, para
+  no borrar de golpe lo que elegiste plato por plato.
 
 El destino agrupa la comanda por estación y alimenta el reporte Ventas por Destino.
 
@@ -267,7 +310,8 @@ El destino agrupa la comanda por estación y alimenta el reporte Ventas por Dest
 1. Los combos aparecen como tarjetas al principio de la grilla, con borde ámbar y la
    etiqueta "Combo". Se buscan por nombre desde el mismo buscador de ítems.
 2. Al tocar uno se abre el armador: eliges un ítem por slot y, si el slot lo permite, sus
-   notas y modificadores.
+   notas, modificadores y su destino. El interruptor de arriba fija el destino de todo el
+   combo y borra los ajustes por slot; los de cada slot afinan desde ahí.
 3. Al confirmar entran al carrito los componentes agrupados bajo el nombre del combo, con
    el precio ya repartido por el servidor.
 4. Si vuelves a armar un combo idéntico (mismo destino, mismas elecciones, misma nota), en
@@ -280,6 +324,16 @@ combo no pertenece a ningún grupo de ítems.
 
 ### 3.5 Cobrar
 
+El cuadro de cobro llena el método por defecto con el total. Al cambiar de método:
+
+- Si ese monto seguía siendo el que puso el sistema, se traslada entero al método nuevo y
+  el anterior queda en 0. Cobrar 100 en QR es tocar QR, nada más: no hay que borrar el
+  efectivo a mano.
+- Si lo editaste tú, se respeta y el método nuevo recibe **solo la diferencia**. Con un
+  total de 100 y 80 escritos en efectivo, al pasar a transferencia aparecen 20.
+
+Así el pago dividido en dos métodos sigue funcionando sin cuentas mentales.
+
 Al cobrar, en una sola operación se crean y envían la POS Invoice y su Restaurant Order
 enlazado. Si algo falla, no queda ni media venta grabada.
 
@@ -287,7 +341,19 @@ Ya cobrado y confirmado, se lanza la impresión: comanda a las impresoras de coc
 correspondan al destino, y recibo a las de caja. La impresión ocurre **después** de que la
 venta se guardó, así que una impresora caída jamás revierte ni bloquea un cobro.
 
-### 3.6 Atajos de teclado
+### 3.6 Cerrar el turno a ciegas
+
+Con `Show Expected Amount When Closing` apagado, el cierre de caja **no muestra** lo
+esperado, lo vendido ni la diferencia, y el campo del conteo arranca en 0 en vez de venir
+prellenado: el cajero cuenta lo que hay sin saber lo que debería haber.
+
+El servidor ni siquiera manda esas cifras al POS, así que no es un "ocultar" de pantalla.
+La diferencia se sigue calculando y guardando en el POS Closing Entry igual que siempre, y
+ahí la revisas después.
+
+Activado (como viene de fábrica) el cierre es el de siempre.
+
+### 3.7 Atajos de teclado
 
 | Tecla | Acción |
 |---|---|
@@ -354,8 +420,9 @@ que imprime una hoja de prueba y **sí levanta el error en pantalla** si no cone
 | Los acentos salen como símbolos | Codepage equivocado en la impresora. Empieza por CP850. |
 | El ticket sale cortado a lo ancho | `Characters per Line` mal: 32 para 58 mm, 48 para 80 mm. |
 | Un plato no aparece en la grilla | Está en un grupo de menú del día y no se marcó al abrir el turno. |
-| El combo no se deja guardar | Margen alto o Mixto sin ningún slot con `Discount Order`, o dos slots con el mismo número. |
-| El combo no aparece en la grilla | Hay un filtro de categoría activo: los combos solo se listan en "All Item Groups". |
+| El combo no se deja guardar | Margen alto o Mixto sin ningún slot con `Discount Order`; dos slots con el mismo número; un slot sin `Item Group` y sin platos en `Individual Items`; o una fila de `Individual Items` con un `Slot Label` que no existe. |
+| El combo no aparece en la grilla | Hay un filtro de categoría activo (los combos solo se listan en "All Item Groups"), o hoy no es uno de sus días de `Availability`. |
+| Al cobrar sale un precio distinto al del carrito | No debería pasar: el carrito muestra el precio del combo. Si lo ves, revisa que el frontend esté compilado con la versión actual. |
 
 ---
 

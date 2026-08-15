@@ -166,8 +166,13 @@ del combo (ver el detalle de los tres métodos de reparto en la
 
 ### Cómo se conecta un slot con el catálogo
 
-Cada slot apunta a un Item Group. Eso es todo el vínculo: **lo que esté en ese grupo es
-elegible**, y lo que agregues mañana al grupo se vuelve elegible solo.
+Lo normal es que un slot apunte a un Item Group. Eso es todo el vínculo: **lo que esté en
+ese grupo es elegible**, y lo que agregues mañana al grupo se vuelve elegible solo.
+
+Cuando el slot son dos o tres platos concretos y no un grupo entero, puedes nombrarlos uno
+por uno en la tabla `Individual Items` del combo y dejar `Item Group` en blanco — o usar
+las dos cosas a la vez, y entonces el slot acepta la unión. Detalle en la
+[guía del módulo](restaurant-module.md#223-platos-sueltos-en-un-slot).
 
 Tu combo **Completo** (15.00):
 
@@ -241,7 +246,8 @@ Al crear un plato:
 | La tarjeta dice "Select" y no agrega nada | Es una plantilla: es el comportamiento esperado, abre el selector de variante |
 | El plato no aparece en la grilla | Está en un grupo de menú del día sin marcar; o tiene stock en 0 con validación de existencias activa; o es una variante (solo se ve la plantilla) |
 | El grupo no aparece como pestaña | Es un grupo padre (`Is Group` marcado). Solo se listan grupos hoja |
-| El plato no aparece en el armador del combo | No está en el Item Group del slot, o el slot no incluye subgrupos |
+| El plato no aparece en el armador del combo | No está en el Item Group del slot ni en los `Individual Items` de ese slot, o el slot no incluye subgrupos |
+| El combo no aparece en la grilla | Hoy no es uno de los días marcados en su sección `Availability` (sin ningún día marcado sale todos los días) |
 | Las presas no se distinguen en los reportes | Se modelaron como modificador en vez de variante |
 
 ---
