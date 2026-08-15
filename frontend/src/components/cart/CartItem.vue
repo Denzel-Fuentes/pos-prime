@@ -81,8 +81,8 @@ const modifiersSummary = computed(() => {
 
       <!-- Item name & description -->
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1.5">
-          <span class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate leading-tight">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-200 break-words leading-tight">
             {{ item.item_name }}
           </span>
           <span
@@ -201,9 +201,13 @@ const modifiersSummary = computed(() => {
       <div v-else-if="item.is_free_item" class="shrink-0" :style="{ width: qtyColWidth }">
         <span class="text-xs font-bold text-green-600 dark:text-green-400">&times;{{ item.qty }}</span>
       </div>
-      <div v-else :style="{ width: qtyColWidth }" />
+      <div v-else-if="!isComboComponent" :style="{ width: qtyColWidth }" />
       <!-- combo component: qty is edited at the instance level from the
-           ComboCartGroup header, nothing to show here (keeps column alignment) -->
+           ComboCartGroup header — nothing to show here, and unlike a plain
+           item row this one isn't sharing a column grid with Cart.vue's
+           header (it's nested inside ComboCartGroup's own box), so the
+           placeholder is dropped rather than reserved: that width goes to
+           the name and the destination/modifiers row instead. -->
 
       <!-- Amount -->
       <div class="w-[72px] text-right shrink-0">
@@ -228,7 +232,7 @@ const modifiersSummary = computed(() => {
       >
         <Trash2 :size="isTouchDevice ? 17 : 13" />
       </button>
-      <div v-else :style="{ width: deleteColWidth }" />
+      <div v-else-if="!isComboComponent" :style="{ width: deleteColWidth }" />
     </div>
 
     <!-- Separator line (ERPNext-style) -->

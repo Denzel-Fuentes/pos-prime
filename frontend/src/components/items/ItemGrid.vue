@@ -2,7 +2,7 @@
 <!-- Licensed under GPLv3. See license.txt -->
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useItemsStore } from '@/stores/items'
 import { useCartStore } from '@/stores/cart'
@@ -17,7 +17,7 @@ import VariantPickerDialog from './VariantPickerDialog.vue'
 import CameraScanner from '@/components/scanner/CameraScanner.vue'
 import ComboCard from '@/components/restaurant/ComboCard.vue'
 import ComboBuilderDialog from '@/components/restaurant/ComboBuilderDialog.vue'
-import { Package, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
+import { Package, PanelLeftClose, PanelLeftOpen, Minus, Plus } from 'lucide-vue-next'
 import { useDeskMode } from '@/composables/useDeskMode'
 import type { Item, CartItem, RestaurantCombo } from '@/types'
 
@@ -29,7 +29,6 @@ const settingsStore = useSettingsStore()
 const restaurantStore = useRestaurantStore()
 const scrollContainer = ref<HTMLElement | null>(null)
 const showCameraScanner = ref(false)
-const columnCount = ref(4)
 const showCategories = ref(localStorage.getItem('pos_show_categories') !== 'false')
 
 function toggleCategories() {
@@ -37,32 +36,30 @@ function toggleCategories() {
   localStorage.setItem('pos_show_categories', String(showCategories.value))
 }
 
-function delayedUpdateColumnCount() {
-  // Delay to let sidebar CSS transition finish before measuring
-  setTimeout(updateColumnCount, 300)
+// Column count is a per-device preference (like showCategories above)
+// rather than a responsive auto-fit: a fixed count is what lets a cashier
+// pick the density that matches their screen/finger size once and keep it,
+// instead of the grid silently reflowing as the cart panel resizes.
+const MIN_COLUMNS = 2
+const MAX_COLUMNS = 6
+const DEFAULT_COLUMNS = 3
+
+function loadColumnCount() {
+  const saved = Number(localStorage.getItem('pos_item_grid_columns'))
+  return saved >= MIN_COLUMNS && saved <= MAX_COLUMNS ? saved : DEFAULT_COLUMNS
+}
+
+const columnCount = ref(loadColumnCount())
+
+function setColumnCount(count: number) {
+  columnCount.value = Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, count))
+  localStorage.setItem('pos_item_grid_columns', String(columnCount.value))
 }
 
 onMounted(() => {
   itemsStore.fetchItemGroups()
   itemsStore.fetchAllItems()
-  updateColumnCount()
-  window.addEventListener('resize', updateColumnCount)
-  // Adapt when Frappe desk sidebar is toggled
-  $(document.body).on('toggleSidebar', delayedUpdateColumnCount)
 })
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateColumnCount)
-  $(document.body).off('toggleSidebar', delayedUpdateColumnCount)
-})
-
-function updateColumnCount() {
-  const width = scrollContainer.value?.clientWidth || window.innerWidth
-  if (width < 640) columnCount.value = 2
-  else if (width < 768) columnCount.value = 3
-  else if (width < 1000) columnCount.value = 4
-  else columnCount.value = 5
-}
 
 /** One grid cell — combos and items share the same grid (and therefore the
  * same virtualizer rows), so they travel through it as a tagged union. */
@@ -308,6 +305,27 @@ const headerLabel = computed(() => {
           <PanelLeftOpen v-else :size="16" />
         </button>
         <span class="text-base font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ headerLabel }}</span>
+      </div>
+
+      <!-- Item grid column count (per-device preference, see loadColumnCount) -->
+      <div class="flex items-center gap-0.5 shrink-0 rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5" :title="__('Columns')">
+        <button
+          @click="setColumnCount(columnCount - 1)"
+          :disabled="columnCount <= MIN_COLUMNS"
+          :aria-label="__('Fewer columns')"
+          class="w-7 h-7 rounded-md flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <Minus :size="13" />
+        </button>
+        <span class="w-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300">{{ columnCount }}</span>
+        <button
+          @click="setColumnCount(columnCount + 1)"
+          :disabled="columnCount >= MAX_COLUMNS"
+          :aria-label="__('More columns')"
+          class="w-7 h-7 rounded-md flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <Plus :size="13" />
+        </button>
       </div>
 
       <!-- Search -->

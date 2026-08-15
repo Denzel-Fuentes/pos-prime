@@ -1,4 +1,4 @@
-import{a as e}from"./index-Txv9ZQye.js";/**
+import{a as e}from"./index-CXQD0CPB.js";/**
  * @license lucide-vue-next v0.344.0 - ISC
  *
  * This source code is licensed under the ISC license.
@@ -29,4 +29,4 @@ import{a as e}from"./index-Txv9ZQye.js";/**
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */const y=e("UserIcon",[["path",{d:"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2",key:"975kel"}],["circle",{cx:"12",cy:"7",r:"4",key:"17ys0d"}]]);function k(a){var t;const r=window.frappe;return(t=r==null?void 0:r.router)!=null&&t.is_app_route?`${window.location.pathname.startsWith("/desk")?"/desk":"/app"}/${a}`:window.location.pathname.startsWith("/desk")?`/desk/${a}`:`/app/${a}`}export{o as A,s as C,i as E,d as M,p as P,y as U,k as d};
-//# sourceMappingURL=deskUrl-BDS88niN.js.map
+//# sourceMappingURL=deskUrl-DvW7dU6i.js.map

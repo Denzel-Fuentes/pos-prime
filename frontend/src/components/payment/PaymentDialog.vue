@@ -309,7 +309,7 @@ async function doSubmit() {
   }
 }
 
-const numpadKeys = ['1','2','3','4','5','6','7','8','9','.','0','DEL']
+const numpadKeys = ['1','2','3','4','5','6','7','8','9','.','0','C']
 </script>
 
 <template>
@@ -442,9 +442,6 @@ const numpadKeys = ['1','2','3','4','5','6','7','8','9','.','0','DEL']
 
             <!-- Active Method Amount Display -->
             <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-              <div class="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5 font-semibold">
-                {{ paymentStore.activePaymentMethod }} {{ __('Amount') }}
-              </div>
               <!-- Keyboard input for non-touch -->
               <input
                 v-if="!isTouchDevice"
@@ -457,13 +454,21 @@ const numpadKeys = ['1','2','3','4','5','6','7','8','9','.','0','DEL']
                 class="w-full text-2xl font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border-2 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400"
                 :class="activeAmount > 0 ? 'border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700'"
               />
-              <!-- Touch display -->
-              <div
-                v-else
-                class="text-2xl font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border-2 transition-colors"
-                :class="activeAmount > 0 ? 'border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700'"
-              >
-                {{ displayValue || '0' }}
+              <!-- Touch display, with digit-by-digit delete right next to it -->
+              <div v-else class="flex items-center gap-2">
+                <div
+                  class="flex-1 min-w-0 text-2xl font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border-2 transition-colors truncate"
+                  :class="activeAmount > 0 ? 'border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700'"
+                >
+                  {{ displayValue || '0' }}
+                </div>
+                <button
+                  @click="pressKey('DEL')"
+                  aria-label="Delete last digit"
+                  class="shrink-0 w-11 h-11 rounded-lg bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all duration-150"
+                >
+                  <Delete :size="18" />
+                </button>
               </div>
             </div>
 
@@ -479,30 +484,23 @@ const numpadKeys = ['1','2','3','4','5','6','7','8','9','.','0','DEL']
               </button>
             </div>
 
-            <!-- NumPad (touch devices only) -->
+            <!-- NumPad (touch devices only). Digit-by-digit delete lives next
+                 to the amount display above — this grid only clears the
+                 whole amount, in the last cell where DEL used to be. -->
             <div v-if="isTouchDevice" class="grid grid-cols-4 gap-1.5">
               <button
                 v-for="key in numpadKeys"
                 :key="key"
                 @click="pressKey(key)"
-                :aria-label="key === 'DEL' ? 'Delete' : `Press ${key}`"
+                :aria-label="key === 'C' ? __('Clear') : `Press ${key}`"
                 class="h-12 rounded-xl font-semibold transition-all duration-150 active:scale-95 flex items-center justify-center"
                 :class="
-                  key === 'DEL'
-                    ? 'bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 text-sm'
+                  key === 'C'
+                    ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 text-base'
                 "
               >
-                <Delete v-if="key === 'DEL'" :size="18" />
-                <span v-else>{{ key }}</span>
-              </button>
-              <!-- Clear button in 4th column -->
-              <button
-                @click="pressKey('C')"
-                aria-label="Clear"
-                class="h-12 rounded-xl font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 active:scale-95 transition-all duration-150 text-xs"
-              >
-                {{ __('Clear') }}
+                {{ key === 'C' ? __('Clear') : key }}
               </button>
             </div>
 

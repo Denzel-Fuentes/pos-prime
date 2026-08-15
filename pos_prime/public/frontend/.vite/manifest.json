@@ -3,69 +3,69 @@
     "file": "assets/AppShell-Bcopp0zt.css",
     "src": "_AppShell-!~{00g}~.js"
   },
-  "_AppShell-CzO4jGze.js": {
-    "file": "assets/AppShell-CzO4jGze.js",
+  "_AppShell-LToJrJQa.js": {
+    "file": "assets/AppShell-LToJrJQa.js",
     "name": "AppShell",
     "imports": [
       "index.html",
       "_call-DnScUNMN.js",
       "src/stores/posSession.ts",
-      "_log-out-I4D1Qr5V.js"
+      "_log-out-BNx3ee3U.js"
     ],
     "css": [
       "assets/AppShell-Bcopp0zt.css"
     ]
   },
-  "_DenominationCalculator.vue_vue_type_script_setup_true_lang-B0paqL86.js": {
-    "file": "assets/DenominationCalculator.vue_vue_type_script_setup_true_lang-B0paqL86.js",
+  "_DenominationCalculator.vue_vue_type_script_setup_true_lang-CWtNBF7l.js": {
+    "file": "assets/DenominationCalculator.vue_vue_type_script_setup_true_lang-CWtNBF7l.js",
     "name": "DenominationCalculator.vue_vue_type_script_setup_true_lang",
     "imports": [
       "index.html",
-      "_useCurrency-B_q-gC7q.js"
+      "_useCurrency-B82P9taZ.js"
     ]
   },
-  "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-JhsNZmu5.js": {
-    "file": "assets/EmailReceiptDialog.vue_vue_type_script_setup_true_lang-JhsNZmu5.js",
+  "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-CD4YkoUD.js": {
+    "file": "assets/EmailReceiptDialog.vue_vue_type_script_setup_true_lang-CD4YkoUD.js",
     "name": "EmailReceiptDialog.vue_vue_type_script_setup_true_lang",
     "imports": [
       "index.html",
-      "_AppShell-CzO4jGze.js",
+      "_AppShell-LToJrJQa.js",
       "_call-DnScUNMN.js"
     ]
   },
   "_POS-!~{002}~.js": {
-    "file": "assets/POS-B6f7jfVy.css",
+    "file": "assets/POS-DJ75a6VV.css",
     "src": "_POS-!~{002}~.js"
   },
-  "_POS-CJShLSqU.js": {
-    "file": "assets/POS-CJShLSqU.js",
+  "_POS-BfQTIbBE.js": {
+    "file": "assets/POS-BfQTIbBE.js",
     "name": "POS",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
-      "_restaurant-DMexcQ1U.js",
+      "_restaurant-C5DflK7O.js",
       "src/stores/customer.ts",
-      "_useBarcodeScanner-Dc-RPamW.js",
-      "_AppShell-CzO4jGze.js",
-      "_useBroadcastDisplay-CtukYiam.js",
-      "_useCurrency-B_q-gC7q.js",
+      "_useBarcodeScanner-DTYTKVCJ.js",
+      "_AppShell-LToJrJQa.js",
+      "_useBroadcastDisplay-C_C3AM4f.js",
+      "_useCurrency-B82P9taZ.js",
       "_call-DnScUNMN.js",
-      "_utensils-crossed-DwwcTu6N.js",
-      "_deskUrl-BDS88niN.js",
-      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-JhsNZmu5.js"
+      "_utensils-crossed-CCBEw7Bh.js",
+      "_deskUrl-DvW7dU6i.js",
+      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-CD4YkoUD.js"
     ],
     "dynamicImports": [
       "node_modules/html2canvas/dist/html2canvas.esm.js",
-      "_jspdf.es.min-0NnrXIPm.js"
+      "_jspdf.es.min-BOtT8U-7.js"
     ],
     "css": [
-      "assets/POS-B6f7jfVy.css"
+      "assets/POS-DJ75a6VV.css"
     ]
   },
-  "_arrow-left-BWIh3FhU.js": {
-    "file": "assets/arrow-left-BWIh3FhU.js",
+  "_arrow-left-DQqzvLP1.js": {
+    "file": "assets/arrow-left-DQqzvLP1.js",
     "name": "arrow-left",
     "imports": [
       "index.html"
@@ -75,15 +75,15 @@
     "file": "assets/call-DnScUNMN.js",
     "name": "call"
   },
-  "_deskUrl-BDS88niN.js": {
-    "file": "assets/deskUrl-BDS88niN.js",
+  "_deskUrl-DvW7dU6i.js": {
+    "file": "assets/deskUrl-DvW7dU6i.js",
     "name": "deskUrl",
     "imports": [
       "index.html"
     ]
   },
-  "_jspdf.es.min-0NnrXIPm.js": {
-    "file": "assets/jspdf.es.min-0NnrXIPm.js",
+  "_jspdf.es.min-BOtT8U-7.js": {
+    "file": "assets/jspdf.es.min-BOtT8U-7.js",
     "name": "jspdf.es.min",
     "isDynamicEntry": true,
     "imports": [
@@ -95,15 +95,15 @@
       "node_modules/canvg/lib/index.es.js"
     ]
   },
-  "_log-out-I4D1Qr5V.js": {
-    "file": "assets/log-out-I4D1Qr5V.js",
+  "_log-out-BNx3ee3U.js": {
+    "file": "assets/log-out-BNx3ee3U.js",
     "name": "log-out",
     "imports": [
       "index.html"
     ]
   },
-  "_restaurant-DMexcQ1U.js": {
-    "file": "assets/restaurant-DMexcQ1U.js",
+  "_restaurant-C5DflK7O.js": {
+    "file": "assets/restaurant-C5DflK7O.js",
     "name": "restaurant",
     "imports": [
       "index.html",
@@ -119,43 +119,43 @@
       "src/stores/posSession.ts"
     ]
   },
-  "_useBarcodeScanner-Dc-RPamW.js": {
-    "file": "assets/useBarcodeScanner-Dc-RPamW.js",
+  "_useBarcodeScanner-DTYTKVCJ.js": {
+    "file": "assets/useBarcodeScanner-DTYTKVCJ.js",
     "name": "useBarcodeScanner",
     "imports": [
       "index.html",
-      "_restaurant-DMexcQ1U.js",
+      "_restaurant-C5DflK7O.js",
       "_call-DnScUNMN.js"
     ]
   },
-  "_useBroadcastDisplay-CtukYiam.js": {
-    "file": "assets/useBroadcastDisplay-CtukYiam.js",
+  "_useBroadcastDisplay-C_C3AM4f.js": {
+    "file": "assets/useBroadcastDisplay-C_C3AM4f.js",
     "name": "useBroadcastDisplay",
     "imports": [
       "index.html"
     ]
   },
-  "_useCurrency-B_q-gC7q.js": {
-    "file": "assets/useCurrency-B_q-gC7q.js",
+  "_useCurrency-B82P9taZ.js": {
+    "file": "assets/useCurrency-B82P9taZ.js",
     "name": "useCurrency",
     "imports": [
       "src/stores/settings.ts"
     ]
   },
-  "_utensils-crossed-DwwcTu6N.js": {
-    "file": "assets/utensils-crossed-DwwcTu6N.js",
+  "_utensils-crossed-CCBEw7Bh.js": {
+    "file": "assets/utensils-crossed-CCBEw7Bh.js",
     "name": "utensils-crossed",
     "imports": [
       "index.html"
     ]
   },
   "index.html": {
-    "file": "assets/index-Txv9ZQye.js",
+    "file": "assets/index-CXQD0CPB.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
     "dynamicImports": [
-      "_POS-CJShLSqU.js",
+      "_POS-BfQTIbBE.js",
       "src/views/OpenShift.vue",
       "src/views/CloseShift.vue",
       "src/views/Orders.vue",
@@ -171,27 +171,27 @@
     ]
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-CdVk_Z9s.js",
+    "file": "assets/index.es-BwHD7MVz.js",
     "name": "index.es",
     "src": "node_modules/canvg/lib/index.es.js",
     "isDynamicEntry": true,
     "imports": [
-      "_POS-CJShLSqU.js",
-      "_jspdf.es.min-0NnrXIPm.js",
+      "_POS-BfQTIbBE.js",
+      "_jspdf.es.min-BOtT8U-7.js",
       "index.html",
       "src/stores/posSession.ts",
       "_call-DnScUNMN.js",
       "src/stores/settings.ts",
-      "_restaurant-DMexcQ1U.js",
+      "_restaurant-C5DflK7O.js",
       "src/stores/customer.ts",
-      "_useBarcodeScanner-Dc-RPamW.js",
-      "_AppShell-CzO4jGze.js",
-      "_log-out-I4D1Qr5V.js",
-      "_useBroadcastDisplay-CtukYiam.js",
-      "_useCurrency-B_q-gC7q.js",
-      "_utensils-crossed-DwwcTu6N.js",
-      "_deskUrl-BDS88niN.js",
-      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-JhsNZmu5.js"
+      "_useBarcodeScanner-DTYTKVCJ.js",
+      "_AppShell-LToJrJQa.js",
+      "_log-out-BNx3ee3U.js",
+      "_useBroadcastDisplay-C_C3AM4f.js",
+      "_useCurrency-B82P9taZ.js",
+      "_utensils-crossed-CCBEw7Bh.js",
+      "_deskUrl-DvW7dU6i.js",
+      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-CD4YkoUD.js"
     ]
   },
   "node_modules/dompurify/dist/purify.es.mjs": {
@@ -207,7 +207,7 @@
     "isDynamicEntry": true
   },
   "src/stores/customer.ts": {
-    "file": "assets/customer-5wUq50xd.js",
+    "file": "assets/customer-sdPCYk2d.js",
     "name": "customer",
     "src": "src/stores/customer.ts",
     "isDynamicEntry": true,
@@ -220,7 +220,7 @@
     ]
   },
   "src/stores/posSession.ts": {
-    "file": "assets/posSession-CRK4Poc8.js",
+    "file": "assets/posSession-CdEeIHgC.js",
     "name": "posSession",
     "src": "src/stores/posSession.ts",
     "isDynamicEntry": true,
@@ -230,7 +230,7 @@
     ]
   },
   "src/stores/settings.ts": {
-    "file": "assets/settings-DERiwxbJ.js",
+    "file": "assets/settings-CDcavzWq.js",
     "name": "settings",
     "src": "src/stores/settings.ts",
     "isDynamicEntry": true,
@@ -240,7 +240,7 @@
     ]
   },
   "src/views/CloseShift.vue": {
-    "file": "assets/CloseShift-CLsrzc6E.js",
+    "file": "assets/CloseShift-CvYLSFjB.js",
     "name": "CloseShift",
     "src": "src/views/CloseShift.vue",
     "isDynamicEntry": true,
@@ -248,14 +248,14 @@
       "index.html",
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
-      "_useCurrency-B_q-gC7q.js",
-      "_DenominationCalculator.vue_vue_type_script_setup_true_lang-B0paqL86.js",
+      "_useCurrency-B82P9taZ.js",
+      "_DenominationCalculator.vue_vue_type_script_setup_true_lang-CWtNBF7l.js",
       "_call-DnScUNMN.js",
-      "_log-out-I4D1Qr5V.js"
+      "_log-out-BNx3ee3U.js"
     ]
   },
   "src/views/CustomerDisplay.vue": {
-    "file": "assets/CustomerDisplay-BRj--bCR.js",
+    "file": "assets/CustomerDisplay-BrfweH_8.js",
     "name": "CustomerDisplay",
     "src": "src/views/CustomerDisplay.vue",
     "isDynamicEntry": true,
@@ -264,20 +264,20 @@
       "_call-DnScUNMN.js",
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
-      "_AppShell-CzO4jGze.js",
-      "_deskUrl-BDS88niN.js",
-      "_arrow-left-BWIh3FhU.js",
-      "_log-out-I4D1Qr5V.js"
+      "_AppShell-LToJrJQa.js",
+      "_deskUrl-DvW7dU6i.js",
+      "_arrow-left-DQqzvLP1.js",
+      "_log-out-BNx3ee3U.js"
     ]
   },
   "src/views/CustomerPoleDisplay.vue": {
-    "file": "assets/CustomerPoleDisplay-Dp-5blfZ.js",
+    "file": "assets/CustomerPoleDisplay-CmWujCic.js",
     "name": "CustomerPoleDisplay",
     "src": "src/views/CustomerPoleDisplay.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_useBroadcastDisplay-CtukYiam.js",
+      "_useBroadcastDisplay-C_C3AM4f.js",
       "_call-DnScUNMN.js"
     ],
     "css": [
@@ -285,7 +285,7 @@
     ]
   },
   "src/views/OpenShift.vue": {
-    "file": "assets/OpenShift-DOt2KTqW.js",
+    "file": "assets/OpenShift-4rLE5qgJ.js",
     "name": "OpenShift",
     "src": "src/views/OpenShift.vue",
     "isDynamicEntry": true,
@@ -293,16 +293,16 @@
       "index.html",
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
-      "_restaurant-DMexcQ1U.js",
-      "_useCurrency-B_q-gC7q.js",
-      "_DenominationCalculator.vue_vue_type_script_setup_true_lang-B0paqL86.js",
-      "_utensils-crossed-DwwcTu6N.js",
-      "_arrow-left-BWIh3FhU.js",
+      "_restaurant-C5DflK7O.js",
+      "_useCurrency-B82P9taZ.js",
+      "_DenominationCalculator.vue_vue_type_script_setup_true_lang-CWtNBF7l.js",
+      "_utensils-crossed-CCBEw7Bh.js",
+      "_arrow-left-DQqzvLP1.js",
       "_call-DnScUNMN.js"
     ]
   },
   "src/views/Orders.vue": {
-    "file": "assets/Orders-DNHqQwR9.js",
+    "file": "assets/Orders-D3EjKk9N.js",
     "name": "Orders",
     "src": "src/views/Orders.vue",
     "isDynamicEntry": true,
@@ -311,15 +311,15 @@
       "_call-DnScUNMN.js",
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
-      "_AppShell-CzO4jGze.js",
-      "_useCurrency-B_q-gC7q.js",
-      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-JhsNZmu5.js",
-      "_arrow-left-BWIh3FhU.js",
-      "_log-out-I4D1Qr5V.js"
+      "_AppShell-LToJrJQa.js",
+      "_useCurrency-B82P9taZ.js",
+      "_EmailReceiptDialog.vue_vue_type_script_setup_true_lang-CD4YkoUD.js",
+      "_arrow-left-DQqzvLP1.js",
+      "_log-out-BNx3ee3U.js"
     ]
   },
   "src/views/SelfCheckout.vue": {
-    "file": "assets/SelfCheckout-B1dTYbBE.js",
+    "file": "assets/SelfCheckout-Dnfhd0xV.js",
     "name": "SelfCheckout",
     "src": "src/views/SelfCheckout.vue",
     "isDynamicEntry": true,
@@ -328,9 +328,9 @@
       "src/stores/posSession.ts",
       "src/stores/settings.ts",
       "src/stores/customer.ts",
-      "_restaurant-DMexcQ1U.js",
-      "_useBarcodeScanner-Dc-RPamW.js",
-      "_useCurrency-B_q-gC7q.js",
+      "_restaurant-C5DflK7O.js",
+      "_useBarcodeScanner-DTYTKVCJ.js",
+      "_useCurrency-B82P9taZ.js",
       "_call-DnScUNMN.js"
     ],
     "css": [
