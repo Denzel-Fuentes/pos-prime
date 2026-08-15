@@ -20,6 +20,8 @@ than raw escapes, so a readable line is `{{ row('1x Sopa', 'BOB 5.00') }}`
 and not a wall of \\x1b. Hand-typed escapes still work — see EscposBuilder.raw.
 """
 
+import re
+
 import frappe
 
 from pos_prime.restaurant.ticket_options import shows
@@ -27,16 +29,34 @@ from pos_prime.restaurant.ticket_options import shows
 ESC = "\x1b"
 GS = "\x1d"
 
+# Matches one ESC/GS control sequence emitted by the constants below
+# (align: ESC 'a' <byte>, bold: ESC 'E' <byte>, size: GS '!' <byte>) — used
+# to measure a string's *printed* width when it has BOLD/BIG/MED/etc. mixed
+# in, so row()'s alignment math isn't thrown off by bytes that never show up
+# on paper.
+_CONTROL_RE = re.compile(r"\x1b[aE].|\x1d!.")
+
+
+def _visible_len(s):
+	return len(_CONTROL_RE.sub("", s))
+
+
+def _visible_rjust(s, width):
+	pad = width - _visible_len(s)
+	return (" " * pad if pad > 0 else "") + s
+
 
 def _helpers(chars_per_line, currency=None):
 	def row(left, right=""):
 		"""One line with `left` flush left and `right` flush right. When they
 		don't fit together, `right` drops to its own right-aligned line rather
-		than being truncated — a price must never be cut off."""
+		than being truncated — a price must never be cut off. Safe to wrap
+		either side in BOLD/BIG/MED/etc.: width is measured on the visible
+		text only, control bytes don't count against it."""
 		left, right = str(left), str(right)
-		gap = chars_per_line - len(left) - len(right)
+		gap = chars_per_line - _visible_len(left) - _visible_len(right)
 		if gap < 1:
-			return f"{left}\n{right.rjust(chars_per_line)}"
+			return f"{left}\n{_visible_rjust(right, chars_per_line)}"
 		return left + " " * gap + right
 
 	def money(value):
@@ -54,6 +74,11 @@ def _helpers(chars_per_line, currency=None):
 		"NOBOLD": ESC + "E\x00",
 		"BIG": GS + "!\x11",
 		"NOBIG": GS + "!\x00",
+		# Double height only (no extra width) — a step up from normal without
+		# jumping all the way to BIG's double-width-and-height. Meant for
+		# item/description text that should stand out a little, not shout.
+		"MED": GS + "!\x01",
+		"NOMED": GS + "!\x00",
 		"chars_per_line": chars_per_line,
 		"sep": lambda char="-": char * chars_per_line,
 		"row": row,
