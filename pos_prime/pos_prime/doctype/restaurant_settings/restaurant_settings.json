@@ -11,6 +11,7 @@
   "disable_coupon_code",
   "disable_more_options",
   "hide_category_search",
+  "hide_empty_categories",
   "section_break_shift",
   "show_expected_amount_on_close",
   "section_break_combo_pricing",
@@ -86,6 +87,13 @@
    "fieldname": "hide_category_search",
    "fieldtype": "Check",
    "label": "Hide Category Search"
+  },
+  {
+   "default": "0",
+   "description": "Hides an Item Group from the category list when it has no item currently sellable in the POS — same rule as the item grid: disabled/non-sales items excluded, stock-out items excluded if \"Hide Unavailable Items\" is on for the POS Profile, and today's \"plato del dia\" picks applied for any gated groups. Off by default.",
+   "fieldname": "hide_empty_categories",
+   "fieldtype": "Check",
+   "label": "Hide Empty Categories"
   },
   {
    "fieldname": "section_break_shift",

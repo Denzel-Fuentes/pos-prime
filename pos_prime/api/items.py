@@ -509,9 +509,19 @@ def get_item_groups(pos_profile=""):
     if pos_profile:
         profile = frappe.get_doc("POS Profile", pos_profile)
         if profile.item_groups:
-            return [ig.item_group for ig in profile.item_groups]
+            groups = [ig.item_group for ig in profile.item_groups]
+        else:
+            groups = _default_item_groups()
+    else:
+        groups = _default_item_groups()
 
-    # Return top-level groups
+    if pos_profile and frappe.db.get_single_value("Restaurant Settings", "hide_empty_categories"):
+        groups = _groups_with_available_items(pos_profile, groups)
+
+    return groups
+
+
+def _default_item_groups():
     groups = frappe.get_list(
         "Item Group",
         filters={"is_group": 0},
@@ -520,3 +530,77 @@ def get_item_groups(pos_profile=""):
         limit_page_length=50,
     )
     return [g.name for g in groups]
+
+
+def _groups_with_available_items(pos_profile, candidate_groups):
+    """Which of candidate_groups (expanded through their subgroups) contain
+    at least one item currently sellable in the POS — the same availability
+    rules get_items applies: disabled/non-sales items excluded, stock-out
+    items excluded when the POS Profile hides them, and today's daily-menu
+    gate applied to any gated groups."""
+    from pos_prime.restaurant.daily_menu import get_daily_menu_gate
+
+    profile = frappe.get_doc("POS Profile", pos_profile)
+    warehouse = profile.warehouse or ""
+    should_hide = bool(profile.get("hide_unavailable_items"))
+
+    daily_gate = get_daily_menu_gate(pos_profile)
+
+    conditions = [
+        "i.disabled = 0",
+        "i.is_sales_item = 1",
+        "(i.has_variants = 1 OR IFNULL(i.variant_of, '') = '')",
+        "i.is_fixed_asset = 0",
+    ]
+    values = {}
+
+    if daily_gate:
+        gated_groups, allowed_items = daily_gate
+        if allowed_items:
+            conditions.append(
+                "NOT (i.item_group IN %(gated_groups)s AND i.item_code NOT IN %(allowed_items)s)"
+            )
+            values["allowed_items"] = list(allowed_items)
+        else:
+            conditions.append("i.item_group NOT IN %(gated_groups)s")
+        values["gated_groups"] = list(gated_groups)
+
+    join_clause = ""
+    if should_hide and warehouse:
+        join_clause = (
+            "LEFT JOIN `tabBin` b ON b.item_code = i.item_code AND b.warehouse = %(warehouse)s "
+            "LEFT JOIN ("
+            "  SELECT pi_item.item_code, SUM(pi_item.stock_qty) as reserved_qty"
+            "  FROM `tabPOS Invoice Item` pi_item"
+            "  INNER JOIN `tabPOS Invoice` pi ON pi.name = pi_item.parent"
+            "  WHERE pi_item.docstatus = 1"
+            "    AND pi_item.warehouse = %(warehouse)s"
+            "    AND IFNULL(pi.consolidated_invoice, '') = ''"
+            "  GROUP BY pi_item.item_code"
+            ") pos_res ON pos_res.item_code = i.item_code"
+        )
+        conditions.append(
+            "(i.has_variants = 1 OR i.is_stock_item = 0 "
+            "OR (IFNULL(b.actual_qty, 0) - IFNULL(pos_res.reserved_qty, 0)) > 0)"
+        )
+        values["warehouse"] = warehouse
+
+    where = " AND ".join(conditions)
+
+    rows = frappe.db.sql(
+        f"""
+        SELECT DISTINCT i.item_group
+        FROM `tabItem` i
+        {join_clause}
+        WHERE {where}
+        """,
+        values,
+        as_dict=True,
+    )
+    groups_with_items = {r.item_group for r in rows}
+
+    return [
+        group
+        for group in candidate_groups
+        if groups_with_items & set(_get_group_and_children(group))
+    ]
