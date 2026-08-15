@@ -85,11 +85,16 @@ def comanda_context(order, printer, destinations, settings):
 				continue
 			seen.add(item.combo_uid)
 			combo_row = combos_by_uid.get(item.combo_uid)
+			print_label = (
+				frappe.get_cached_value("Restaurant Combo", combo_row.combo, "print_label")
+				if combo_row
+				else None
+			)
 			combos.append(
 				{
 					"uid": item.combo_uid,
 					"label": (
-						f"{combo_row.combo_name or combo_row.combo} #{combo_row.instance_no}"
+						f"{print_label or combo_row.combo_name or combo_row.combo} #{combo_row.instance_no}"
 						if combo_row
 						else item.combo_uid
 					),
